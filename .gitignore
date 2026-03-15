@@ -1,0 +1,19 @@
+# Entorno virtual
+.venv/
+venv/
+env/
+
+# Archivos de base de datos local
+db.sqlite3
+*.sqlite3
+
+# Archivos compilados de Python
+__pycache__/
+*.py[cod]
+
+# Archivos de configuración sensible
+.env
+.secret_keys.py
+
+# Archivos de VS Code
+.vscode/
