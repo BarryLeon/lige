@@ -1,0 +1,41 @@
+/************************************
+ *   PALETA DE COLORES DEL PROYECTO *
+ *              NADAMOS             *
+ ************************************/
+
+ // Colores comunes 
+      
+ $primary-color: #0d6efd;
+ $info-color: #0dcaf0;
+ $white: #fff;
+ $dark-gray: #333;
+ $light-gray: #f8f9fa;
+
+ //titulo de seccion //
+ $color-titulo-seccion: $white; 
+
+ //seccion nosotros //
+ $color-seccion-nosotros:  #0dcaf0;
+
+ // secciones de clubes //
+ $color-clubes-h2: $dark-gray;
+
+ // seccion contacto //
+ $color-seccion-contacto:  #6ebaba;
+ $color-seccion-contacto-formulario: #83bcc9;
+ $color-seccion-contacto-bordes: $dark-gray;
+ $color-seccion-contacto-focus: $primary-color;
+ $color-seccion-contacto-completar: #e4e5e6;      
+ 
+ // color de borde de los espacios de llenado del formulario //
+ $color-box-shadow: #6c93cc; 
+
+ // botones //
+ $color-boton-fondo: #5aafe0;
+ $color-boton-borde: #5aafe0;
+ $hover-color-boton-fondo: #6c93cc;
+ $hover-color-boton-borde: #6c93cc;
+ $color-boton-texto:  $white;
+
+ // colores link //
+ $color-seccion-clubes-link: $primary-color; 

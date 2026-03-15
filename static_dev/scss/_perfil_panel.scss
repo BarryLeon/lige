@@ -1,0 +1,566 @@
+// perfil-nadador.scss - Estilos exclusivos para el perfil de nadador
+
+#panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;  // asegurás un mínimo sin afectar layout general
+}
+
+#tabs {
+  flex: 1;
+  background: url('/media/img/fondo.png') no-repeat center;
+  background-size: cover;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+// entrenamientos - Estilos exclusivos para el tab entrenamientos
+#modal-detalle-rutina.ui-dialog-content {
+  background-color: #1a1a1a !important;
+  color: #ddd !important;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.ui-dialog .ui-dialog-titlebar {
+  background-color: #333 !important;
+  color: #eee !important;
+  border: none !important;
+}
+
+.ui-dialog .ui-dialog-titlebar-close {
+  color: #eee !important;
+}
+
+
+// perfil - Estilos exclusivos para el tab perfil de nadador
+// Variables específicas del perfil
+$primary-gradient: linear-gradient(135deg, #2196F3 0%, #21CBF3 100%);
+$secondary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+$card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+$card-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.15);
+$border-radius-lg: 24px;
+$border-radius-md: 16px;
+$border-radius-sm: 12px;
+$transition-smooth: all 0.3s ease;
+
+// Namespace para evitar conflictos con otros estilos
+.perfil-nadador {
+  
+  // Container principal del perfil
+  &__container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: $border-radius-lg;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: transform 0.3s ease;
+
+    &:hover {
+      transform: translateY(-5px);
+    }
+  }
+
+  // Header con información principal
+  &__header {
+    background: $primary-gradient;
+    padding: 2.5rem;
+    text-align: center;
+    color: white;
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      animation: ripple 4s infinite;
+    }
+  }
+
+  // Foto de perfil
+  &__photo {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 5px solid rgba(255, 255, 255, 0.3);
+    object-fit: cover;
+    margin: 0 auto 1.25rem;
+    display: block;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease;
+
+    &:hover {
+      transform: scale(1.05);
+    }
+  }
+
+  // Nombre del nadador
+  &__name {
+    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    font-weight: 700;
+    margin-bottom: 0.625rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  // Username
+  &__username {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    font-weight: 400;
+  }
+
+  // Contenido principal
+  &__content {
+    padding: 2.5rem;
+
+    @media (max-width: 768px) {
+      padding: 1.25rem;
+    }
+  }
+
+  // Grid de información
+  &__info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.875rem;
+    margin-bottom: 2.5rem;
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+  }
+
+  // Tarjetas de información
+  &__card {
+    background: white;
+    border-radius: $border-radius-md;
+    padding: 1.5625rem;
+    box-shadow: $card-shadow;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    transition: $transition-smooth;
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: $primary-gradient;
+    }
+
+    &:hover {
+      transform: translateY(-5px);
+      box-shadow: $card-shadow-hover;
+    }
+  }
+
+  // Título de la tarjeta
+  &__card-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+
+  // Icono de la tarjeta
+  &__card-icon {
+    width: 24px;
+    height: 24px;
+    background: $primary-gradient;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.75rem;
+  }
+
+  // Items de información
+  &__info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    @media (max-width: 480px) {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.25rem;
+    }
+  }
+
+  // Etiqueta de información
+  &__info-label {
+    font-weight: 500;
+    color: #666;
+    font-size: 0.9rem;
+  }
+
+  // Valor de información
+  &__info-value {
+    font-weight: 600;
+    color: #2c3e50;
+    text-align: right;
+
+    @media (max-width: 480px) {
+      text-align: left;
+    }
+  }
+
+  // Contenedor de badges
+  &__badges {
+    display: flex;
+    gap: 0.9375rem;
+    flex-wrap: wrap;
+    margin-top: 1.25rem;
+    justify-content: center;
+
+    @media (max-width: 768px) {
+      justify-content: center;
+    }
+  }
+
+  // Badge base
+  &__badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: $transition-smooth;
+    cursor: default;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    // Variantes de badges
+    &--category {
+      background: linear-gradient(135deg, #e74c3c, #c0392b);
+      color: white;
+    }
+
+    &--level {
+      background: linear-gradient(135deg, #27ae60, #229954);
+      color: white;
+    }
+  }
+
+  // Sección de documentos
+  &__documents {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-radius: $border-radius-md;
+    padding: 1.5625rem;
+    margin-top: 1.875rem;
+  }
+
+  // Título de sección
+  &__section-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+
+  // Item de documento
+  &__document-item {
+    display: flex;
+    align-items: center;
+    gap: 0.9375rem;
+    padding: 0.9375rem;
+    background: white;
+    border-radius: $border-radius-sm;
+    margin-bottom: 0.625rem;
+    transition: $transition-smooth;
+    border: 2px solid transparent;
+
+    &:hover {
+      border-color: #2196F3;
+      transform: translateX(5px);
+    }
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  // Icono de documento
+  &__doc-icon {
+    width: 40px;
+    height: 40px;
+    background: $primary-gradient;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    flex-shrink: 0;
+  }
+
+  // Contenido del documento
+  &__doc-content {
+    flex: 1;
+    
+    strong {
+      display: block;
+      color: #2c3e50;
+      margin-bottom: 0.3125rem;
+    }
+
+    p {
+      color: #666;
+      margin: 0;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+  }
+
+  // Enlaces
+  &__link {
+    color: #2196F3;
+    text-decoration: none;
+    transition: $transition-smooth;
+
+    &:hover {
+      color: #1976D2;
+      text-decoration: underline;
+    }
+  }
+
+  // Texto responsivo
+  &__responsive-text {
+    font-size: clamp(0.9rem, 2vw, 1rem);
+    line-height: 1.5;
+  }
+}
+
+// Animación para el efecto ripple
+@keyframes ripple {
+  0% { 
+    transform: scale(0.8) rotate(0deg); 
+    opacity: 1; 
+  }
+  100% { 
+    transform: scale(1.2) rotate(360deg); 
+    opacity: 0; 
+  }
+}
+
+// Estilos para estados de carga y errores
+.perfil-nadador {
+  &__loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+    color: #666;
+  }
+
+  &__error {
+    background: #fee;
+    border: 1px solid #fcc;
+    color: #c66;
+    padding: 1rem;
+    border-radius: $border-radius-sm;
+    margin: 1rem 0;
+    text-align: center;
+  }
+
+  &__empty {
+    text-align: center;
+    color: #999;
+    font-style: italic;
+    padding: 2rem;
+  }
+}
+
+// configuracion del MODAL  para actualizar perfil
+
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0,0,0,0.5);
+}
+
+.modal-contenido {
+  background-color: #64caf1;
+  margin: 5% auto;
+  padding: 20px;
+  border-radius: 10px;
+  width: 80%;
+  max-width: 700px;
+  position: relative;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.cerrar {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #aaa;
+}
+
+.cerrar:hover {
+  color: #000;
+}
+
+.formulario-modal {
+  background-color: #d4eef3;
+  padding: 2rem;
+  border-radius: 12px;
+  color: #333;
+
+  .fila {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .campo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1rem;
+
+    label {
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+
+    input,
+    select {
+      padding: 0.6rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+  }
+
+  .botones {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+
+    .btn {
+      padding: 0.6rem 1.2rem;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+
+      &.cancelar {
+        background-color: #ccc;
+        color: #222;
+      }
+      
+    }
+  }
+
+  .error {
+    color: #e74c3c;
+    font-size: 0.875rem;
+  }
+
+  .imagen-preview img {
+    max-width: 100px;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+  }
+
+  .archivo-link a {
+    font-size: 0.9rem;
+    color: #007bff;
+    text-decoration: underline;
+  }
+}
+
+// Ajustes para pantallas muy pequeñas (< 400px)
+@media (max-width: 400px) {
+  .ui-dialog {
+    width: 98vw !important;
+    max-width: none !important;
+    left: 1vw !important;
+    right: 1vw !important;
+  }
+  
+  .ui-dialog-content {
+    font-size: 1.1rem;
+    padding: 1em 0.8em;
+  }
+
+  .ui-dialog .ui-dialog-buttonpane button {
+    font-size: 1.3rem;
+    padding: 0.7em 1.2em;
+  }
+}
+
+
+// Media queries adicionales para mejores breakpoints
+@media (max-width: 1024px) {
+  .perfil-nadador {
+    &__container {
+      margin: 1rem;
+      border-radius: $border-radius-md;
+    }
+  }
+}
+
+@media (max-width: 640px) {
+  #tabs{
+      padding-top: 35px;
+
+  }
+  .perfil-nadador {
+    &__container {
+      margin: 0.5rem;
+    }
+
+    &__header {
+      padding: 1.875rem 1.25rem;
+    }
+
+    &__info-item {
+      padding: 0.5rem 0;
+    }
+
+    &__document-item {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+  }
+}

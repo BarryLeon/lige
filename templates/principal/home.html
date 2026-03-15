@@ -1,0 +1,169 @@
+{% extends "layout_interno.html" %}
+{% load static %}
+
+{% block contenido_panel %}
+<div class="container-fluid px-4 py-4" style="color: white; width: 100%;">
+
+  <!-- Título -->
+  <h2 class="mb-5" style="color: cadetblue;">Gestión de Archivos</h2>
+
+  <!-- Dashboard: contadores -->
+  <div class="row mb-3 g-3">
+    <div class="col-3">
+      <div class="card text-white bg-secondary h-100">
+        <div class="card-body text-center">
+          <h6 class="card-title">Total de archivos</h6>
+          <h2>{{ archivos.count }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-3">
+      <div class="card text-white h-100" style="background-color: #e67e22;">
+        <div class="card-body text-center">
+          <h6 class="card-title">Sin procesar</h6>
+          <h2>{{ sin_procesar }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-3">
+      <div class="card text-white h-100" style="background-color: #27ae60;">
+        <div class="card-body text-center">
+          <h6 class="card-title">Procesados</h6>
+          <h2>{{ procesados }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-3">
+      <div class="card text-white h-100" style="background-color: #ae2732;">
+        <div class="card-body text-center">
+          <h6 class="card-title">Revertidos</h6>
+          <h2>{{ revertidos }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mensajes -->
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Formulario subir archivo -->
+  <div class="card mb-4" style="background-color: #1a3a4a; border: 1px solid #2c5364;">
+    <div class="card-body">
+      <h5 class="card-title" style="color: cadetblue;">Subir archivo Excel</h5>
+      <form method="post" action="{% url 'subir_archivo' %}" enctype="multipart/form-data" class="row g-3 align-items-end">
+        {% csrf_token %}
+        <div class="col-md-4">
+          <label class="form-label text-white">Período (mes y año)</label>
+          <input type="month" name="periodo" class="form-control" required>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label text-white">Archivo Excel</label>
+          <input type="file" name="archivo" accept=".xlsx,.xls" class="form-control" required>
+        </div>
+        <div class="col-md-3">
+          <button type="submit" class="btn btn-primary w-100">Subir archivo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Lista de archivos -->
+  <div class="card mb-4" style="background-color: #1a3a4a; border: 1px solid #2c5364;">
+    <div class="card-body">
+      <h5 class="card-title" style="color: cadetblue;">Archivos cargados</h5>
+      {% if archivos %}
+        <table class="table table-dark table-hover table-sm">
+          <thead>
+            <tr>
+              <th>Período</th>
+              <th>Nombre de archivo</th>
+              <th>Subido por</th>
+              <th>Fecha de subida</th>
+              <th>Registros</th>
+              <th>Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for archivo in archivos %}
+            <tr>
+              <td>{{ archivo.periodo|date:"F Y" }}</td>
+              <td>{{ archivo.nombre_archivo }}</td>
+              <td>{{ archivo.importado_por.username|default:"—" }}</td>
+              <td>{{ archivo.importado_en|date:"d/m/Y H:i" }}</td>
+              <td>{{ archivo.total_registros }}</td>
+              <td>
+                {% if archivo.revertido %}
+                  <span class="badge bg-secondary">Revertido</span>
+                {% elif archivo.procesado %}
+                  <span class="badge bg-success">Procesado</span>
+                {% else %}
+                  <span class="badge bg-warning text-dark">Sin procesar</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="d-flex gap-1">
+                {% if not archivo.procesado and not archivo.revertido %}
+                  <form method="post" action="{% url 'procesar_archivo' archivo.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-light"
+                            onclick="return confirm('¿Procesar el archivo {{ archivo.nombre_archivo }}?')">
+                      Procesar
+                    </button>
+                  </form>
+                  <form method="post" action="{% url 'eliminar_archivo' archivo.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                            onclick="return confirm('¿Eliminar el archivo {{ archivo.nombre_archivo }}? Esta acción no se puede deshacer.')">
+                      Eliminar
+                    </button>
+                  </form>
+                {% elif archivo.procesado and not archivo.revertido %}
+                  {% if archivo.liquidacion %}
+                    <a href="{% url 'descargar_liquidacion' archivo.liquidacion.pk %}"
+                       class="btn btn-sm btn-outline-info">
+                      Descargar liquidación
+                    </a>
+                  {% else %}
+                    <form method="post" action="{% url 'generar_liquidacion' archivo.pk %}">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-outline-info"
+                              onclick="return confirm('¿Generar liquidación para {{ archivo.nombre_archivo }}?')">
+                        Generar liquidación
+                      </button>
+                    </form>
+                  {% endif %}
+                  <form method="post" action="{% url 'revertir_procesamiento' archivo.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-warning"
+                            onclick="return confirm('¿Revertir el procesamiento de {{ archivo.nombre_archivo }}? Se eliminarán todas las deudas y cuotas generadas.')">
+                      Revertir
+                    </button>
+                  </form>
+                {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="text-white-50">No hay archivos cargados todavía.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Botón consultas -->
+  <div class="text-end">
+    <a href="{% url 'consultas' %}" class="btn btn-outline-info">Ir a Consultas →</a>
+  </div>
+
+</div>
+{% endblock contenido_panel %}

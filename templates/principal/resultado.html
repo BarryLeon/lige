@@ -1,0 +1,93 @@
+{% extends "layout_interno.html" %}
+{% load static %}
+
+{% block contenido_panel %}
+<div class="container px-4 py-4" style="color: white; max-width: 900px;">
+
+  <h2 class="mb-4" style="color: {% if resumen.abortado %}#e74c3c{% else %}cadetblue{% endif %};">
+    {% if resumen.abortado %}
+      Procesamiento abortado — {{ archivo.periodo|date:"F Y" }}
+    {% else %}
+      Resultado de procesamiento — {{ archivo.periodo|date:"F Y" }}
+    {% endif %}
+  </h2>
+
+  {% if resumen.abortado %}
+    <div class="alert alert-danger mb-4">
+      <strong>El archivo no fue procesado.</strong>
+      Se encontraron {{ resumen.errores|length }} problema{{ resumen.errores|length|pluralize }} que deben corregirse antes de poder procesar este archivo.
+      Ningún registro fue grabado en la base de datos.
+    </div>
+  {% endif %}
+
+  <!-- Resumen -->
+  <div class="row mb-4 g-3">
+    <div class="col-md-3">
+      <div class="card text-white bg-secondary text-center">
+        <div class="card-body">
+          <h6>Total filas</h6>
+          <h3>{{ resumen.total_filas }}</h3>
+        </div>
+      </div>
+    </div>
+    {% if not resumen.abortado %}
+    <div class="col-md-3">
+      <div class="card text-white text-center" style="background-color: #2980b9;">
+        <div class="card-body">
+          <h6>Parcelas creadas</h6>
+          <h3>{{ resumen.creados }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white text-center" style="background-color: #8e44ad;">
+        <div class="card-body">
+          <h6>Parcelas actualizadas</h6>
+          <h3>{{ resumen.actualizados }}</h3>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    <div class="col-md-3">
+      <div class="card text-white text-center" style="background-color: {% if resumen.errores %}#c0392b{% else %}#27ae60{% endif %};">
+        <div class="card-body">
+          <h6>Errores</h6>
+          <h3>{{ resumen.errores|length }}</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Errores -->
+  {% if resumen.errores %}
+    <div class="card mb-4" style="background-color: #1a3a4a; border: 1px solid #c0392b;">
+      <div class="card-body">
+        <h5 style="color: #e74c3c;">
+          {% if resumen.abortado %}Problemas encontrados — archivo no procesado{% else %}Detalle de errores{% endif %}
+        </h5>
+        <table class="table table-dark table-sm">
+          <thead>
+            <tr>
+              <th>Fila</th>
+              <th>Mensaje</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for error in resumen.errores %}
+            <tr>
+              <td>{{ error.fila }}</td>
+              <td>{{ error.mensaje }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% else %}
+    <div class="alert alert-success">Procesamiento completado sin errores.</div>
+  {% endif %}
+
+  <a href="{% url 'home' %}" class="btn btn-outline-light">← Volver al dashboard</a>
+
+</div>
+{% endblock contenido_panel %}

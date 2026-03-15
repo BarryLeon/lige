@@ -1,0 +1,258 @@
+// ================================================================
+// MEDIA QUERIES - 
+// ================================================================
+
+// Pantallas pequeñas (móviles)
+@media (max-width: 576px) {
+   a[href="#nav_bar_contenedor"] {
+    display: none;
+  }
+  
+  #video {
+        display: none;
+
+    }    
+    .logo {
+        display: none !important;
+    }
+    #seccion_nosotros {
+        background: url('/media/img/swimmers-79592_1280.jpg') no-repeat center center;
+    }
+  body {
+    font-size: 14px; 
+  }
+
+  #seccion_contacto {
+    h1{
+      margin-top: 60px;
+    }
+    form {
+      padding: 1rem; 
+      padding-bottom: 0rem; 
+      margin-bottom: 0rem; 
+      border-radius: 0.5rem;
+      box-shadow: 0 0.5rem 1rem $color-box-shadow;
+    }
+  }
+
+ .clubs-heading {
+    font-size: $font-size-3xl; 
+  }
+
+  .seccion_clubes {
+    h2 {
+      font-size: $font-size-2xl; 
+      
+    }
+
+    p {
+      font-size: $font-size-base; 
+    }
+  }
+  
+
+  .carousel {
+    min-height: 200px;
+    max-width: 100%;
+ 
+    .carousel-inner,
+    .carousel-item {
+      height: auto;
+      max-width: 100%;
+    }
+    img {
+      object-fit: contain;
+      width: 100%;
+      height: auto;
+    }
+  }  
+
+  .carousel-control-next,
+  .carousel-control-prev {
+    width: 0%;
+  }
+  
+  .card .card-body .card-text {
+    font-size: $font-size-sm; 
+  }
+   .noticias-container {
+    padding-top: 4rem;
+    padding-bottom: 3rem;
+  }
+  // Reducir tamaños de botones
+  .btn.btn-sm {
+    padding: 0.2rem 0.4rem;
+    font-size: $font-size-sm; 
+  }
+  .navbar-collapse {
+    max-width: 100%; 
+    
+    .navbar-nav {
+      width: 100%;
+      
+      .nav-item {
+        width: 100%;
+      }
+    }
+  }
+}
+// Pantallas medianas (tablets y más grande)
+
+@media (min-width: 577px) and (max-width: 991px) {
+  
+  
+  .navbar-brand {
+    font-size: $font-size-3xl; 
+  }
+  
+  .nav-link {
+    font-size: $font-size-lg; 
+  }
+  
+  .dropdown-item {
+    font-size: $font-size-md; 
+   }
+  
+  #seccion_nosotros {
+    h1 {
+      font-size: $font-size-4xl; 
+    }
+    
+    p {
+      font-size: $font-size-lg; 
+    }
+  }
+  
+  .clubs-heading,
+  #seccion_noticias h1 {
+    font-size: $font-size-3xl; 
+  }
+  
+  #seccion_sol,
+  #seccion_aleman,
+  #seccion_juventud {
+    p {
+      font-size: $font-size-md; 
+    }
+  }
+  
+  .btn.btn-sm {
+    padding: 0.3rem 0.6rem;
+    font-size: $font-size-lg; 
+  }
+}
+
+// Pantallas grandes (escritorio)
+@media (min-width: 992px) and (max-width: 1365px) {
+
+  
+  
+  body {
+    font-size: 15px; 
+  }
+  
+  .navbar-brand {
+    font-size: $font-size-2xl; 
+  }
+  
+  .nav-link {
+    font-size: $font-size-base;
+  }
+  
+  .clubs-heading, 
+  #seccion_noticias h1 {
+    font-size: $font-size-4xl; 
+  } 
+  
+  .card .card-body .card-text {
+    font-size: $font-size-base; 
+  }
+  
+  .btn.btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: $font-size-base; 
+  }
+  
+  .noticias-container {
+    padding-bottom: 6rem;
+  }
+
+  #seccion_nosotros {
+    h1 {
+      font-size: $font-size-4xl; 
+    }
+    
+    p {
+      font-size: $font-size-lg; 
+    }
+  }
+  
+  #seccion_sol,
+  #seccion_aleman,
+  #seccion_juventud {
+    p {
+      font-size: $font-size-base; 
+    }
+    
+    h2 {
+      font-size: $font-size-2xl; 
+    }
+  }
+}
+
+// Pantallas extra grandes
+
+@media (min-width: 1366px) and (max-width: 1919px) {
+  
+  .noticias-container {
+    padding-bottom: 6rem;
+  } 
+  #seccion_nosotros {
+    h1 {
+      font-size: $font-size-5xl; 
+    }
+
+    p {
+      font-size: $font-size-xl; 
+    }
+  } 
+  
+  #seccion_sol,
+  #seccion_aleman,
+  #seccion_juventud {
+    p {
+      font-size: $font-size-lg; 
+    }
+    
+    h2 {
+      font-size: $font-size-2xl; 
+      font-weight: bold;
+    }
+    
+    .carousel {
+      margin-bottom: 1.5rem;
+    }
+  }
+}
+
+// Pantallas muy grandes
+@media (min-width: 1920px) {
+  #seccion_nosotros {
+    h1 {
+      font-size: $font-size-5xl; 
+    }
+    
+    p {
+      font-size: $font-size-xl; 
+    }
+  }
+  
+  .clubs-heading {
+    font-size: $font-size-5xl; 
+  }
+  
+  .btn.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: $font-size-lg; 
+  }
+}

@@ -1,0 +1,203 @@
+// Estilos para el Navbar
+#nav_bar_contenedor {
+    .navbar {
+      padding: 0.5rem 1rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      background-color: #fff !important;
+      position: fixed;
+      width: 100%;
+      top: 0;
+      z-index: 1000;
+    }
+    
+    .navbar-brand {
+      font-size: $font-size-xl;
+      font-weight: bold;
+      color: $dark-gray; 
+      padding: 0.25rem 1rem;
+      display: block !important; 
+      
+      &:hover {
+        color: #555; 
+        text-decoration: none;
+      }
+    }
+    .logo-navbar {
+        max-height: 70px;  
+        width: auto;       
+        object-fit: contain; 
+      }
+    
+
+
+    .navbar-toggler {
+      border: 1px solid #ddd;
+      padding: 0.25rem 0.5rem;
+      
+      &:focus {
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+      }
+    }
+    
+    .nav-link {
+      font-size: $font-size-5xl;
+      color: $dark-gray;
+      padding: 0.5rem 1rem;
+      transition: color 0.3s ease;
+      
+      &:hover {
+        color:$primary-color;
+      }
+      
+      &.active {
+        font-weight: 500;
+        color:$primary-color;
+      }
+    }
+    
+    .dropdown-menu {
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border: none;
+      padding: 0.5rem 0;
+    }
+    
+    .dropdown-item {
+      font-size: $font-size-base;
+      padding: 0.5rem 1.5rem;
+      color: #333;
+      
+      &:hover {
+        background-color: rgba(0, 123, 255, 0.1);
+        color: $primary-color;
+      }
+    }
+    
+    .navbar-text {
+      font-size: $font-size-base;
+      color: #555;
+    }
+  }
+  
+  body {
+    padding-top: 80px; 
+  }
+  
+  
+  
+  // Media queries para el navbar
+  @media (max-width: 576px) {
+    body {
+      padding-top: 60px; 
+    }
+  
+   
+    #nav_bar_contenedor {
+      .navbar-brand {
+        font-size: $font-size-xl;
+      }
+      
+      .nav-link {
+        font-size: $font-size-base;
+        padding: 0.4rem 0.8rem;
+      }
+      
+      .dropdown-item {
+        font-size: $font-size-sm;
+        padding: 0.4rem 1rem;
+      }
+      
+      .navbar-text {
+        font-size: $font-size-sm;
+        margin-right: 0.5rem !important;
+      }
+    }
+    
+    footer.footer {
+      position: relative;
+      
+      p {
+        font-size: 10px !important;
+      }
+    }
+  }
+  
+  @media (min-width: 577px) and (max-width: 991px) {
+    body {
+      padding-top: 70px;
+    }
+  
+    #nav_bar_contenedor {
+      .navbar-brand {
+        font-size: $font-size-2xl;
+      }
+      
+      .nav-link {
+        font-size: $font-size-base;
+      }
+      
+      .dropdown-item {
+        font-size: $font-size-base;
+      }
+    }
+  }
+  
+  @media (min-width: 992px) and (max-width: 1365px) {
+    body {
+      padding-top: 75px;
+    }
+  
+    #nav_bar_contenedor {
+      .navbar-brand {
+        font-size: $font-size-2xl;
+      }
+      
+      .nav-link {
+        font-size: $font-size-base;
+      }
+    }
+  }
+  
+  @media (min-width: 1366px) and (max-width: 1919px) {
+    body {
+      padding-top: 80px;
+    }
+  
+    #nav_bar_contenedor {
+      .navbar-brand {
+        font-size: $font-size-3xl;
+      }
+      
+      .nav-link {
+        font-size: $font-size-lg;
+      }
+      
+      .dropdown-item {
+        font-size: $font-size-md;
+      }
+    }
+  }
+  
+  @media (min-width: 1920px) {
+    body {
+      padding-top: 90px;
+    }
+  
+    #nav_bar_contenedor {
+      .navbar-brand {
+        font-size: $font-size-4xl;
+      }
+      
+      .nav-link {
+        font-size: $font-size-xl;
+      }
+      
+      .dropdown-item {
+        font-size: $font-size-lg;
+      }
+      
+      .navbar-text {
+        font-size: $font-size-lg;
+      }
+    }
+  }
