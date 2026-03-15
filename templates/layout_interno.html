@@ -13,7 +13,7 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto">
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" 
+                    <a class="nav-link dropdown-toggle"
                        href="#"
                        id="navbarDropdown"
                        role="button"
@@ -21,22 +21,38 @@
                        aria-expanded="false"
                        style="font-size: 30px;">
                        Publivial
-                      </a>
-                     <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-<li class="dropdown-submenu">
-    <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown">
-        Mar Chiquita
-    </a>
-    <ul class="dropdown-menu">
-        <li>
-            <a class="dropdown-item" href="{% url 'home' %}">
-                Plusvalia Tipantu
-            </a>
-        </li>
-    </ul>
-</li>
-                          <li><a class="dropdown-item" href="{% url 'panel' %}">Dolores</a></li>
-                     </ul>
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+
+                        {# ── Mar Chiquita ── #}
+                        <li class="dropdown-submenu">
+                            <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                                Mar Chiquita
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'home' %}">
+                                        Plusvalia Tipantu
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+
+                        {# ── Dolores ── #}
+                        <li class="dropdown-submenu">
+                            <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                                Dolores
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'carteles_lista' %}">
+                                        Relevamiento de carteles
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+
+                    </ul>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="#" style="font-size: 30px;">Vista Cristal</a>
@@ -47,12 +63,12 @@
                     <span class="navbar-text">Hola, {{ user.first_name|default:user.username }}</span>
                 </li>
                 <li class="nav-item ms-3">
-                  <form method="post" action="{% url 'logout' %}" class="d-inline">
-                          {% csrf_token %}
-                          <button type="submit" class="nav-link btn btn-link p-0">
-                              Cerrar Sesión
-                          </button>
-                  </form>
+                    <form method="post" action="{% url 'logout' %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-link btn btn-link p-0">
+                            Cerrar Sesión
+                        </button>
+                    </form>
                 </li>
             </ul>
         </div>
@@ -60,13 +76,11 @@
 </nav>
 {% endif %}
 
-<main class="d-flex justify-content-center align-items-center vh-100 py-4"
-      style="background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);">
-  
+<main class="d-flex justify-content-center align-items-start py-4"
+      style="background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); min-height: calc(100vh - 90px);">
+
     {% block contenido_panel %}
     {% endblock contenido_panel %}
 </main>
-
-
 
 {% endblock body %}

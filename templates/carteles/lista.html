@@ -1,0 +1,230 @@
+{% extends "layout_interno.html" %}
+{% load static %}
+
+{% block title %}Relevamiento de carteles{% endblock %}
+
+{% block contenido_panel %}
+<div class="container-fluid px-4 py-4 w-100">
+
+  {# ── Encabezado ──────────────────────────────────────────────────────── #}
+  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <h2 class="text-white m-0 fw-bold">🪧 Relevamiento de carteles</h2>
+    <form method="post" action="{% url 'carteles_importar' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-success px-4">
+        ⬇️ Importar desde KoboCollect
+      </button>
+    </form>
+  </div>
+
+  {# ── Mensajes de operación ───────────────────────────────────────────── #}
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show" role="alert">
+        {{ msg }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  {# ── Tarjetas de totales / filtros ───────────────────────────────────── #}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <a href="{% url 'carteles_lista' %}" class="text-decoration-none">
+        <div class="card text-white text-center h-100"
+             style="background: rgba(255,255,255,0.10);
+                    border: 1px solid rgba(255,255,255,{% if not filtro_activo %}0.8{% else %}0.2{% endif %});">
+          <div class="card-body py-3">
+            <div class="fs-1 fw-bold">{{ totales.total }}</div>
+            <div class="small text-white-50">Total</div>
+          </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="?estado=ok" class="text-decoration-none">
+        <div class="card text-white text-center h-100"
+             style="background: rgba(25,135,84,0.35);
+                    border: 1px solid rgba(25,135,84,{% if filtro_activo == 'ok' %}1{% else %}0.5{% endif %});">
+          <div class="card-body py-3">
+            <div class="fs-1 fw-bold">{{ totales.ok }}</div>
+            <div class="small text-white-50">Procesados OK</div>
+          </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="?estado=error" class="text-decoration-none">
+        <div class="card text-white text-center h-100"
+             style="background: rgba(220,53,69,0.35);
+                    border: 1px solid rgba(220,53,69,{% if filtro_activo == 'error' %}1{% else %}0.5{% endif %});">
+          <div class="card-body py-3">
+            <div class="fs-1 fw-bold">{{ totales.error }}</div>
+            <div class="small text-white-50">Con errores</div>
+          </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="?estado=pendiente" class="text-decoration-none">
+        <div class="card text-white text-center h-100"
+             style="background: rgba(255,193,7,0.20);
+                    border: 1px solid rgba(255,193,7,{% if filtro_activo == 'pendiente' %}1{% else %}0.4{% endif %});">
+          <div class="card-body py-3">
+            <div class="fs-1 fw-bold">{{ totales.pendiente }}</div>
+            <div class="small text-white-50">Pendientes</div>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  {# ── Link a descartados ─────────────────────────────────────────────────── #}
+  <div class="mb-3 text-end">
+    {% if mostrar_descartados %}
+      <a href="{% url 'carteles_lista' %}" class="text-white-50 small">
+        ← Ver registros activos
+      </a>
+    {% else %}
+      <a href="?descartados=1" class="text-white-50 small">
+        🗑 Ver descartados
+        {% if totales.descartados %}
+          <span class="badge bg-secondary ms-1">{{ totales.descartados }}</span>
+        {% endif %}
+      </a>
+    {% endif %}
+  </div>
+
+  {# ── Indicador de filtro activo ───────────────────────────────────────── #}
+  {% if filtro_activo %}
+    <div class="mb-3">
+      <span class="text-white-50 small">Mostrando solo: </span>
+      <span class="badge
+        {% if filtro_activo == 'ok' %}bg-success
+        {% elif filtro_activo == 'error' %}bg-danger
+        {% else %}bg-warning text-dark{% endif %}">
+        {{ filtro_activo }}
+      </span>
+      <a href="{% url 'carteles_lista' %}" class="text-white-50 small ms-2">✕ ver todos</a>
+    </div>
+  {% endif %}
+
+  {# ── Tabla de carteles ───────────────────────────────────────────────── #}
+  {% if carteles %}
+  <div class="table-responsive rounded-3" style="background: rgba(0,0,0,0.30);">
+    <table class="table table-dark table-hover align-middle mb-0">
+      <thead style="border-bottom: 2px solid rgba(255,255,255,0.12);">
+        <tr class="text-white-50 small text-uppercase">
+          <th class="ps-3">#</th>
+          <th>Foto</th>
+          <th>Tipo cartel</th>
+          <th>Estado físico</th>
+          <th>Distancia</th>
+          <th>Superficie</th>
+          <th>Procesamiento</th>
+          <th>Captura</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in carteles %}
+        <tr>
+
+          <td class="ps-3 text-white-50 small">{{ c.id }}</td>
+
+          <td>
+            {% if c.foto_anotada %}
+              <img src="{{ c.foto_anotada.url }}" width="90" height="65"
+                   class="rounded" style="object-fit:cover;">
+            {% elif c.foto %}
+              <img src="{{ c.foto.url }}" width="90" height="65"
+                   class="rounded" style="object-fit:cover;">
+            {% else %}
+              <span class="badge bg-danger">Sin foto</span>
+            {% endif %}
+          </td>
+
+          <td class="text-white small">
+            {{ c.get_tipo_cartel_display|default:"—" }}
+          </td>
+
+          <td>
+            {% if c.estado_cartel == 'bueno' %}
+              <span class="badge bg-success">Bueno</span>
+            {% elif c.estado_cartel == 'regular' %}
+              <span class="badge bg-warning text-dark">Regular</span>
+            {% elif c.estado_cartel == 'malo' %}
+              <span class="badge bg-danger">Malo</span>
+            {% else %}
+              <span class="text-white-50">—</span>
+            {% endif %}
+          </td>
+
+          <td class="text-white small">
+            {% if c.distancia %}{{ c.distancia|floatformat:1 }} m{% else %}—{% endif %}
+          </td>
+
+          <td>
+            {% if c.superficie_m2 %}
+              <span class="text-success fw-bold">{{ c.superficie_m2|floatformat:2 }} m²</span>
+            {% else %}
+              <span class="text-white-50">—</span>
+            {% endif %}
+          </td>
+
+          <td>
+            {% if c.estado_procesamiento == 'ok' %}
+              <span class="badge bg-success">✓ OK</span>
+            {% elif c.estado_procesamiento == 'error' %}
+              <span class="badge bg-danger"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="left"
+                    title="{{ c.detalle_error|default:'Ver detalle para más info' }}">
+                ✕ Error
+              </span>
+            {% else %}
+              <span class="badge bg-warning text-dark">⏳ Pendiente</span>
+            {% endif %}
+          </td>
+
+          <td class="text-white-50 small">
+            {% if c.fecha %}
+              {{ c.fecha|date:"d/m/Y" }}<br>
+              <span style="font-size:0.72rem;">{{ c.fecha|date:"H:i" }}</span>
+            {% else %}—{% endif %}
+          </td>
+
+          <td class="pe-3">
+            <a href="{% url 'carteles_detalle' c.id %}"
+               class="btn btn-sm btn-outline-light">
+              Ver →
+            </a>
+          </td>
+
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% else %}
+  <div class="text-center py-5">
+    <p class="text-white-50 fs-5">No hay carteles registrados todavía.</p>
+    <p class="text-white-50 small">
+      Usá el botón <strong class="text-white">Importar desde KoboCollect</strong>
+      para traer los relevamientos.
+    </p>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+      new bootstrap.Tooltip(el);
+    });
+  });
+</script>
+
+{% endblock contenido_panel %}

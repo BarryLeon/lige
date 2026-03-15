@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Cartel #{{ cartel.id }}{% endblock %}
+
+{% block body %}
+
+{% if user.is_authenticated %}
+<nav class="navbar navbar-expand-lg bg-body-tertiary">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{% url 'panel' %}">
+            <img src="{% static 'img/logo.png' %}" alt="Logo LIGE" style="max-height: 90px;">
+        </a>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                       data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 30px;">
+                       Publivial
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                        <li class="dropdown-submenu">
+                            <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                                Mar Chiquita
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'home' %}">Plusvalia Tipantu</a></li>
+                            </ul>
+                        </li>
+                        <li class="dropdown-submenu">
+                            <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                                Dolores
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'carteles_lista' %}">Relevamiento de carteles</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" style="font-size: 30px;">Vista Cristal</a>
+                </li>
+            </ul>
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <span class="navbar-text">Hola, {{ user.first_name|default:user.username }}</span>
+                </li>
+                <li class="nav-item ms-3">
+                    <form method="post" action="{% url 'logout' %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-link btn btn-link p-0">Cerrar Sesión</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+{% endif %}
+
+<main style="background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); min-height: 100vh; padding: 2rem 0;">
+
+<div class="container-fluid px-4 py-4 w-100">
+
+  {# ── Navegación ──────────────────────────────────────────────────────── #}
+  <div class="mb-4">
+    <a href="{% url 'carteles_lista' %}" class="text-white-50 text-decoration-none small">
+      ← Volver al listado
+    </a>
+  </div>
+
+  {# ── Mensajes ────────────────────────────────────────────────────────── #}
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show" role="alert">
+        {{ msg }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  {# ── Alertas de errores individualizadas ─────────────────────────────── #}
+  {% with errores=cartel.lista_errores %}
+    {% if errores %}
+    <div class="mb-4">
+      <div class="card border-danger" style="background: rgba(220,53,69,0.15);">
+        <div class="card-body">
+          <h6 class="text-danger mb-3">⚠️ Este registro tiene errores que requieren corrección:</h6>
+          <ul class="mb-0">
+            {% for error in errores %}
+              <li class="text-white small mb-1">{{ error }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="row g-4">
+
+    {# ══ Columna izquierda: fotos ════════════════════════════════════════ #}
+    <div class="col-12 col-lg-6">
+
+      {# Foto anotada con bounding box #}
+      {% if cartel.foto_anotada %}
+      <div class="mb-3">
+        <p class="text-white-50 small mb-1 text-uppercase">Foto con detección</p>
+        <img src="{{ cartel.foto_anotada.url }}"
+             class="img-fluid rounded-3 w-100"
+             style="max-height: 420px; object-fit: contain;
+                    background: rgba(0,0,0,0.4);"
+             alt="Foto anotada cartel {{ cartel.id }}">
+        {% if cartel.confianza_deteccion %}
+          <p class="text-white-50 small mt-1">
+            Confianza YOLO: {{ cartel.confianza_deteccion|floatformat:2 }}
+          </p>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {# Foto original #}
+      {% if cartel.foto %}
+      <div>
+        <p class="text-white-50 small mb-1 text-uppercase">
+          Foto original{% if cartel.foto_anotada %} (sin procesar){% endif %}
+        </p>
+        <img src="{{ cartel.foto.url }}"
+             class="img-fluid rounded-3 w-100"
+             style="max-height: 300px; object-fit: contain;
+                    background: rgba(0,0,0,0.4);"
+             alt="Foto original cartel {{ cartel.id }}">
+      </div>
+      {% endif %}
+
+      {% if not cartel.foto and not cartel.foto_anotada %}
+      <div class="rounded-3 d-flex align-items-center justify-content-center"
+           style="height: 300px; background: rgba(0,0,0,0.3);
+                  border: 2px dashed rgba(220,53,69,0.6);">
+        <p class="text-danger mb-0">Sin foto adjunta</p>
+      </div>
+      {% endif %}
+
+    </div>
+
+    {# ══ Columna derecha: datos ══════════════════════════════════════════ #}
+    <div class="col-12 col-lg-6 d-flex flex-column gap-3">
+
+      {# Resultado principal #}
+      <div class="rounded-3 p-4 text-center"
+           style="background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.1);">
+        <p class="text-white-50 small text-uppercase mb-1">Superficie calculada</p>
+        {% if cartel.superficie_m2 %}
+          <div class="display-4 fw-bold text-success">
+            {{ cartel.superficie_m2|floatformat:2 }} m²
+          </div>
+          <div class="text-white-50 small mt-2">
+            {{ cartel.ancho_m|floatformat:2 }} m × {{ cartel.alto_m|floatformat:2 }} m
+          </div>
+        {% else %}
+          <div class="display-4 fw-bold text-white-50">—</div>
+          <div class="text-white-50 small mt-1">No calculada</div>
+        {% endif %}
+      </div>
+
+      {# Datos del relevamiento #}
+      <div class="rounded-3 p-4"
+           style="background: rgba(0,0,0,0.30); border: 1px solid rgba(255,255,255,0.08);">
+        <p class="text-white-50 small text-uppercase mb-3">Datos del relevamiento</p>
+        <dl class="row mb-0 small">
+
+          <dt class="col-5 text-white-50 fw-normal">Tipo de cartel</dt>
+          <dd class="col-7 text-white">{{ cartel.get_tipo_cartel_display|default:"—" }}</dd>
+
+          <dt class="col-5 text-white-50 fw-normal">Estado físico</dt>
+          <dd class="col-7">
+            {% if cartel.estado_cartel == 'bueno' %}
+              <span class="badge bg-success">Bueno</span>
+            {% elif cartel.estado_cartel == 'regular' %}
+              <span class="badge bg-warning text-dark">Regular</span>
+            {% elif cartel.estado_cartel == 'malo' %}
+              <span class="badge bg-danger">Malo</span>
+            {% else %}
+              <span class="text-white-50">—</span>
+            {% endif %}
+          </dd>
+
+          <dt class="col-5 text-white-50 fw-normal">Distancia medida</dt>
+          <dd class="col-7 text-white">
+            {% if cartel.distancia %}{{ cartel.distancia|floatformat:1 }} m{% else %}—{% endif %}
+          </dd>
+
+          <dt class="col-5 text-white-50 fw-normal">Tipo de foto</dt>
+          <dd class="col-7 text-white">{{ cartel.tipo_foto|default:"—" }}</dd>
+
+          <dt class="col-5 text-white-50 fw-normal">Operador</dt>
+          <dd class="col-7 text-white">{{ cartel.operador|default:"—" }}</dd>
+
+          <dt class="col-5 text-white-50 fw-normal">Fecha captura</dt>
+          <dd class="col-7 text-white">
+            {% if cartel.fecha %}{{ cartel.fecha|date:"d/m/Y H:i" }}{% else %}—{% endif %}
+          </dd>
+
+          {% if cartel.observaciones %}
+          <dt class="col-5 text-white-50 fw-normal">Observaciones</dt>
+          <dd class="col-7 text-white">{{ cartel.observaciones }}</dd>
+          {% endif %}
+
+        </dl>
+      </div>
+
+      {# Ubicación GPS #}
+      {% if cartel.lat and cartel.lon %}
+      <div class="rounded-3 p-4"
+           style="background: rgba(0,0,0,0.30); border: 1px solid rgba(255,255,255,0.08);">
+        <p class="text-white-50 small text-uppercase mb-3">Ubicación GPS</p>
+        <dl class="row mb-2 small">
+          <dt class="col-5 text-white-50 fw-normal">Latitud</dt>
+          <dd class="col-7 text-white">{{ cartel.lat }}</dd>
+          <dt class="col-5 text-white-50 fw-normal">Longitud</dt>
+          <dd class="col-7 text-white">{{ cartel.lon }}</dd>
+          {% if cartel.tipo_ubicacion_gps %}
+          <dt class="col-5 text-white-50 fw-normal">Tipo GPS</dt>
+          <dd class="col-7 text-white">{{ cartel.tipo_ubicacion_gps }}</dd>
+          {% endif %}
+        </dl>
+        <a href="https://www.google.com/maps?q={{ cartel.lat|stringformat:"f" }},{{ cartel.lon|stringformat:"f" }}"
+           target="_blank" rel="noopener"
+           class="btn btn-sm btn-outline-light mt-1">
+          🗺️ Ver en Google Maps
+        </a>
+      </div>
+      {% endif %}
+
+      {# Estado de procesamiento #}
+      <div class="rounded-3 p-4"
+           style="background: rgba(0,0,0,0.30); border: 1px solid rgba(255,255,255,0.08);">
+        <p class="text-white-50 small text-uppercase mb-3">Estado de procesamiento</p>
+        <div class="mb-2">
+          {% if cartel.estado_procesamiento == 'ok' %}
+            <span class="badge bg-success fs-6">✓ Procesado correctamente</span>
+          {% elif cartel.estado_procesamiento == 'error' %}
+            <span class="badge bg-danger fs-6">✕ Con errores</span>
+          {% else %}
+            <span class="badge bg-warning text-dark fs-6">⏳ Pendiente</span>
+          {% endif %}
+        </div>
+        {% if cartel.detalle_error %}
+          <p class="text-white-50 small mb-0">{{ cartel.detalle_error }}</p>
+        {% endif %}
+        {% if cartel.kobo_id %}
+          <p class="text-white-50 small mb-0 mt-2">ID Kobo: {{ cartel.kobo_id }}</p>
+        {% endif %}
+      </div>
+
+      {# Texto OCR #}
+      <div class="rounded-3 p-4"
+           style="background: rgba(0,0,0,0.30); border: 1px solid rgba(255,255,255,0.08);">
+        <p class="text-white-50 small text-uppercase mb-2">Texto detectado (OCR)</p>
+        {% if cartel.texto_ocr %}
+          <pre class="text-white mb-0"
+               style="white-space: pre-wrap; font-size: 0.95rem; font-family: inherit;">{{ cartel.texto_ocr }}</pre>
+        {% elif cartel.advertencia_sin_texto %}
+          <p class="text-warning small mb-0">
+            ⚠️ No se encontró texto legible. El cartel puede ser solo imagen
+            o la foto no tiene suficiente resolución.
+          </p>
+        {% else %}
+          <p class="text-white-50 small mb-0">—</p>
+        {% endif %}
+      </div>
+
+      {# Acciones #}
+      <div class="d-flex gap-2 flex-wrap mb-3">
+        {% if cartel.foto and cartel.estado_registro == 'activo' %}
+        <form method="post" action="{% url 'carteles_reprocesar' cartel.id %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-outline-warning">
+            🔄 Reprocesar con YOLO
+          </button>
+        </form>
+        {% endif %}
+        <a href="{% url 'carteles_lista' %}" class="btn btn-outline-light">
+          ← Volver al listado
+        </a>
+      </div>
+
+      {# Descartar / Restaurar #}
+      {% if cartel.estado_registro == 'activo' %}
+      <div class="rounded-3 p-4"
+           style="background: rgba(30,30,30,0.85); border: 1px solid rgba(220,53,69,0.6);">
+        <p class="text-danger mb-3">⚠️ Descartar registro</p>
+        <p class="text-white small mb-3">
+          El registro quedará marcado como descartado y no aparecerá en listados
+          ni reportes. No se borra físicamente — podés restaurarlo después.
+          Si marcás "Borrar en KoboToolbox", el operador podrá cargar un formulario nuevo.
+        </p>
+        <form method="post" action="{% url 'carteles_descartar' cartel.id %}">
+          {% csrf_token %}
+          <div class="mb-3">
+            <textarea name="motivo" rows="2" required
+                      class="form-control text-white border-secondary"
+                      style="background: rgba(255,255,255,0.08);"
+                      placeholder="Motivo del descarte (obligatorio)..."></textarea>
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox"
+                   name="borrar_en_kobo" value="1" id="chkKobo">
+            <label class="form-check-label text-white small" for="chkKobo">
+              Borrar también el formulario en KoboToolbox
+              (el operador deberá cargar uno nuevo)
+            </label>
+          </div>
+          <button type="submit" class="btn btn-danger btn-sm px-4"
+                  onclick="return confirm('¿Confirmás el descarte de este registro?')">
+            Descartar registro
+          </button>
+        </form>
+      </div>
+
+      {% else %}
+      {# Registro ya descartado: mostrar info y opción de restaurar #}
+      <div class="rounded-3 p-4"
+           style="background: rgba(30,30,30,0.85); border: 1px solid rgba(255,193,7,0.6);">
+        <p class="text-warning mb-2">🗑 Registro descartado</p>
+        {% if cartel.motivo_descarte %}
+          <p class="text-white-50 small mb-1">
+            <strong class="text-white">Motivo:</strong> {{ cartel.motivo_descarte }}
+          </p>
+        {% endif %}
+        {% if cartel.descartado_por %}
+          <p class="text-white-50 small mb-1">
+            <strong class="text-white">Por:</strong> {{ cartel.descartado_por.get_full_name|default:cartel.descartado_por.username }}
+            {% if cartel.descartado_en %}
+              el {{ cartel.descartado_en|date:"d/m/Y H:i" }}
+            {% endif %}
+          </p>
+        {% endif %}
+        <form method="post" action="{% url 'carteles_restaurar' cartel.id %}" class="mt-3">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-outline-warning btn-sm"
+                  onclick="return confirm('¿Restaurar este registro como activo?')">
+            ↩️ Restaurar como activo
+          </button>
+        </form>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+</main>
+
+{% endblock body %}
