@@ -9,11 +9,10 @@ PROTOCOLO DE CAPTURA ESPERADO:
   - La distancia ingresada en el formulario es la distancia real al cartel
 
 ESTRATEGIA DE DETECCIÓN (cascada):
-  1. GrabCut: separa primer plano del fondo, elige el bbox más grande
-     y con proporción razonable de cartel. Funciona bien con carteles
-     de cualquier color sobre fondos naturales (cielo, campo, pared).
-  2. Contornos rectangulares OpenCV: fallback para casos con bordes definidos.
-  3. YOLO: último recurso.
+  1. YOLO fine-tuneado (carteles_yolo.pt): modelo entrenado específicamente
+     en billboards y traffic panels. Método principal desde v2.
+  2. GrabCut: fallback si YOLO no detecta nada. Separa primer plano del fondo.
+  3. Contornos rectangulares OpenCV: último recurso para casos con bordes definidos.
 
 CÁLCULO DE SUPERFICIE:
   Semejanza de triángulos con FOV derivado del EXIF (FocalLengthIn35mmFilm).
@@ -33,16 +32,26 @@ from PIL.ExifTags import TAGS
 from ultralytics import YOLO
 from carteles.servicios.ocr_cartel import extraer_texto
 
-# ── Modelo YOLO (fallback) ───────────────────────────────────────────────────
-_MODELO_PATH = os.path.join(os.path.dirname(__file__), "yolov8n.pt")
+# ── Modelo YOLO ──────────────────────────────────────────────────────────────
+_MODELO_PATH = os.path.join(os.path.dirname(__file__), "carteles_yolo.pt")
 _modelo = None
+
+# Umbral de confianza alto porque el modelo es específico para carteles
+_CONFIANZA_MINIMA_YOLO = 0.50
 
 
 def _get_modelo():
     global _modelo
     if _modelo is None:
         _modelo = YOLO(_MODELO_PATH)
-        _modelo.to("cuda")  # usar GPU RTX 3050
+        try:
+            import torch
+            if torch.cuda.is_available():
+                _modelo.to("cuda")  # usar GPU RTX 3050
+            else:
+                _modelo.to("cpu")
+        except Exception:
+            _modelo.to("cpu")
     return _modelo
 
 
@@ -94,7 +103,7 @@ def _calcular_fov_h(exif: dict) -> float:
     focal_mm = exif.get("focal_mm")
     ancho_px = exif.get("ancho_px")
     if focal_mm and focal_mm > 0 and ancho_px:
-        sensor_w = ancho_px * 0.001  # 1µm por píxel estimado
+        sensor_w = ancho_px * 0.001
         fov = 2 * math.degrees(math.atan(sensor_w / (2 * focal_mm)))
         if 20 < fov < 120:
             return fov
@@ -114,18 +123,52 @@ def _px_a_m(px: int, px_total: int, dist_m: float, fov_deg: float) -> float:
     return (px / px_total) * total_m
 
 
-# ── Método 1: GrabCut ────────────────────────────────────────────────────────
+# ── Método 1: YOLO fine-tuneado (principal) ───────────────────────────────────
+
+def _detectar_yolo(ruta_imagen: str, alto_img: int, ancho_img: int) -> dict | None:
+    """
+    Detecta usando el modelo entrenado específicamente en billboards.
+    Filtra solo la clase 0 (billboard) ya que es la relevante para el sistema.
+    Si hay varias detecciones elige la de mayor confianza.
+    """
+    modelo = _get_modelo()
+    resultados = modelo(ruta_imagen, verbose=False, classes=[0])  # 0 = billboard
+    area_img = alto_img * ancho_img
+    mejor = None
+    mejor_conf = 0
+
+    for r in resultados:
+        if r.boxes is None:
+            continue
+        for box in r.boxes:
+            conf = float(box.conf[0])
+            if conf < _CONFIANZA_MINIMA_YOLO:
+                continue
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            w, h = x2 - x1, y2 - y1
+            if w == 0 or h == 0:
+                continue
+            area_ratio = (w * h) / area_img
+            if area_ratio < 0.05 or area_ratio > 0.95:
+                continue
+            if conf > mejor_conf:
+                mejor_conf = conf
+                mejor = {"x": x1, "y": y1, "w": w, "h": h, "confianza": round(conf, 4)}
+
+    return mejor
+
+
+# ── Método 2: GrabCut (fallback) ─────────────────────────────────────────────
 
 def _detectar_grabcut(imagen: np.ndarray) -> dict | None:
     """
-    Usa GrabCut para separar primer plano del fondo y encuentra el bbox
-    del objeto más grande con proporción de cartel (ancho/alto entre 1.2 y 6).
+    Fallback: usa GrabCut para separar primer plano del fondo.
+    Elige el bbox más grande con proporción razonable de cartel.
     """
     alto, ancho = imagen.shape[:2]
     area_img = alto * ancho
 
     mask = np.zeros((alto, ancho), np.uint8)
-    # Rect inicial: 90% central de la imagen
     rect = (
         int(ancho * 0.05), int(alto * 0.05),
         int(ancho * 0.90), int(alto * 0.90)
@@ -139,8 +182,6 @@ def _detectar_grabcut(imagen: np.ndarray) -> dict | None:
         return None
 
     mask2 = np.where((mask == 2) | (mask == 0), 0, 255).astype("uint8")
-
-    # Limpiar máscara
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
     mask2 = cv2.morphologyEx(mask2, cv2.MORPH_CLOSE, kernel)
 
@@ -156,9 +197,7 @@ def _detectar_grabcut(imagen: np.ndarray) -> dict | None:
         area_ratio = (w * h) / area_img
         if area_ratio < 0.08 or area_ratio > 0.95:
             continue
-        asp = w / h  # ancho/alto
-        # Carteles: casi siempre más anchos que altos (asp > 1)
-        # pero aceptamos también verticales (mínimo 0.3)
+        asp = w / h
         if asp < 0.3 or asp > 7.0:
             continue
         candidatos.append((area_ratio, x, y, w, h))
@@ -171,7 +210,7 @@ def _detectar_grabcut(imagen: np.ndarray) -> dict | None:
     return {"x": x, "y": y, "w": w, "h": h, "confianza": round(candidatos[0][0], 4)}
 
 
-# ── Método 2: contornos rectangulares ────────────────────────────────────────
+# ── Método 3: Contornos rectangulares (último recurso) ───────────────────────
 
 def _detectar_contornos(imagen: np.ndarray) -> dict | None:
     alto, ancho = imagen.shape[:2]
@@ -214,45 +253,6 @@ def _detectar_contornos(imagen: np.ndarray) -> dict | None:
     return mejor
 
 
-# ── Método 3: YOLO fallback ───────────────────────────────────────────────────
-
-def _detectar_yolo(ruta_imagen: str, alto_img: int, ancho_img: int) -> dict | None:
-    modelo = _get_modelo()
-    resultados = modelo(ruta_imagen, verbose=False)
-    area_img = alto_img * ancho_img
-    cx_img, cy_img = ancho_img / 2, alto_img / 2
-    diag = math.sqrt(ancho_img ** 2 + alto_img ** 2)
-    mejor = None
-    mejor_score = 0
-
-    for r in resultados:
-        if r.boxes is None:
-            continue
-        for box in r.boxes:
-            conf = float(box.conf[0])
-            if conf < 0.35:
-                continue
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
-            w, h = x2 - x1, y2 - y1
-            if w == 0 or h == 0:
-                continue
-            area_ratio = (w * h) / area_img
-            if area_ratio < 0.08 or area_ratio > 0.92:
-                continue
-            if max(w, h) / min(w, h) > 6.0:
-                continue
-            cx = x1 + w / 2
-            cy = y1 + h / 2
-            dist_c = math.sqrt((cx - cx_img) ** 2 + (cy - cy_img) ** 2)
-            centralidad = 1 - (dist_c / (diag / 2))
-            score = conf * (0.5 + 0.5 * centralidad)
-            if score > mejor_score:
-                mejor_score = score
-                mejor = {"x": x1, "y": y1, "w": w, "h": h, "confianza": round(conf, 4)}
-
-    return mejor
-
-
 # ── Validación de zoom ────────────────────────────────────────────────────────
 
 def _zoom_sospechoso(bbox: dict, ancho_total_px: int, dist_m: float, fov_h: float) -> bool:
@@ -285,30 +285,29 @@ def detectar_cartel(ruta_imagen: str, distancia_m: float) -> dict:
     exif = _leer_exif(ruta_imagen)
     fov_h = _calcular_fov_h(exif)
 
-    # Corregir FOV si hay zoom digital en EXIF
     zoom = exif.get("digital_zoom")
     if zoom and zoom > 1.0:
         fov_h = fov_h / zoom
 
     fov_v_deg = _fov_v(fov_h, ancho_total, alto_total)
 
-    # Detección en cascada
-    bbox = _detectar_grabcut(imagen)
-    metodo = "grabcut"
+    # ── Detección en cascada: YOLO → GrabCut → Contornos ────────────────────
+    bbox = _detectar_yolo(ruta_imagen, alto_total, ancho_total)
+    metodo = "yolo"
+
+    if bbox is None:
+        bbox = _detectar_grabcut(imagen)
+        metodo = "grabcut"
 
     if bbox is None:
         bbox = _detectar_contornos(imagen)
         metodo = "contornos"
 
     if bbox is None:
-        bbox = _detectar_yolo(ruta_imagen, alto_total, ancho_total)
-        metodo = "yolo"
-
-    if bbox is None:
         resultado["error"] = "sin_deteccion"
         return resultado
 
-    # Cálculo de superficie
+    # ── Cálculo de superficie ────────────────────────────────────────────────
     ancho_m = _px_a_m(bbox["w"], ancho_total, distancia_m, fov_h)
     alto_m  = _px_a_m(bbox["h"], alto_total,  distancia_m, fov_v_deg)
     superficie_m2 = round(ancho_m * alto_m, 4)
@@ -317,7 +316,7 @@ def detectar_cartel(ruta_imagen: str, distancia_m: float) -> dict:
 
     zoom_flag = _zoom_sospechoso(bbox, ancho_total, distancia_m, fov_h)
 
-    # Imagen anotada
+    # ── Imagen anotada ───────────────────────────────────────────────────────
     img_out = imagen.copy()
     x, y, w, h = bbox["x"], bbox["y"], bbox["w"], bbox["h"]
     color = (0, 165, 255) if zoom_flag else (0, 220, 0)
@@ -332,7 +331,7 @@ def detectar_cartel(ruta_imagen: str, distancia_m: float) -> dict:
                 (10, alto_total - 15),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
 
-    # OCR sobre el recorte del bbox
+    # ── OCR sobre el recorte del bbox ────────────────────────────────────────
     ocr = extraer_texto(ruta_imagen, bbox)
 
     resultado.update({

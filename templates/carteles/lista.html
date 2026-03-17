@@ -9,12 +9,17 @@
   {# ── Encabezado ──────────────────────────────────────────────────────── #}
   <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
     <h2 class="text-white m-0 fw-bold">🪧 Relevamiento de carteles</h2>
-    <form method="post" action="{% url 'carteles_importar' %}">
-      {% csrf_token %}
-      <button type="submit" class="btn btn-success px-4">
-        ⬇️ Importar desde KoboCollect
-      </button>
-    </form>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{% url 'carteles_informes' %}" class="btn btn-outline-light px-4">
+        📊 Informes / Estadísticas
+      </a>
+      <form method="post" action="{% url 'carteles_importar' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success px-4">
+          ⬇️ Importar desde KoboCollect
+        </button>
+      </form>
+    </div>
   </div>
 
   {# ── Mensajes de operación ───────────────────────────────────────────── #}

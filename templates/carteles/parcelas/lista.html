@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Parcelas{% endblock %}
+{% block body %}
+{% if user.is_authenticated %}
+<nav class="navbar navbar-expand-lg bg-body-tertiary">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{% url 'panel' %}">
+            <img src="{% static 'img/logo.png' %}" alt="Logo LIGE" style="max-height: 90px;">
+        </a>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><span class="navbar-text">Hola, {{ user.first_name|default:user.username }}</span></li>
+                <li class="nav-item ms-3">
+                    <form method="post" action="{% url 'logout' %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-link btn btn-link p-0">Cerrar Sesión</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+{% endif %}
+<main style="background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); min-height: 100vh; padding: 2rem 0;">
+<div class="container-fluid px-4">
+
+  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <h2 class="text-white m-0 fw-bold">🗺 Parcelas / Terrenos</h2>
+    <div class="d-flex gap-2">
+      <a href="{% url 'carteles_parcelas_crear' %}" class="btn btn-success">+ Nueva parcela</a>
+      <a href="{% url 'carteles_informes' %}" class="btn btn-outline-light">← Informes</a>
+    </div>
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show">
+        {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="get" class="mb-4">
+    <div class="input-group" style="max-width: 400px;">
+      <input type="text" name="q" value="{{ q }}"
+             class="form-control bg-transparent text-white border-secondary"
+             placeholder="Buscar por nomenclatura, dirección o propietario...">
+      <button class="btn btn-outline-light" type="submit">🔍</button>
+      {% if q %}<a href="{% url 'carteles_parcelas_lista' %}" class="btn btn-outline-secondary">✕</a>{% endif %}
+    </div>
+  </form>
+
+  {% if parcelas %}
+  <div class="table-responsive rounded-3" style="background: rgba(0,0,0,0.30);">
+    <table class="table table-dark table-hover align-middle mb-0 small">
+      <thead style="border-bottom: 2px solid rgba(255,255,255,0.12);">
+        <tr class="text-white-50 text-uppercase">
+          <th class="ps-3">Nomenclatura catastral</th>
+          <th>Dirección</th>
+          <th>Localidad</th>
+          <th>Prop. terreno</th>
+          <th>Carteles</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in parcelas %}
+        <tr>
+          <td class="ps-3 text-white fw-bold">{{ p.nomenclatura }}</td>
+          <td class="text-white-50">{{ p.direccion|default:"—" }}</td>
+          <td class="text-white-50">{{ p.localidad|default:"—" }}</td>
+          <td class="text-white">
+            {% if p.propietario_terreno %}{{ p.propietario_terreno.nombre_completo }}
+            {% else %}<span class="text-warning small">Sin propietario</span>{% endif %}
+          </td>
+          <td class="text-white-50">{{ p.carteles.count }}</td>
+          <td class="pe-3">
+            <a href="{% url 'carteles_parcelas_editar' p.id %}" class="btn btn-sm btn-outline-light">Editar</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5">
+    <p class="text-white-50 fs-5">No hay parcelas registradas todavía.</p>
+    <a href="{% url 'carteles_parcelas_crear' %}" class="btn btn-success">+ Crear primera parcela</a>
+  </div>
+  {% endif %}
+
+</div>
+</main>
+{% endblock body %}

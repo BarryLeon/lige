@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ accion }} parcela{% endblock %}
+{% block body %}
+{% if user.is_authenticated %}
+<nav class="navbar navbar-expand-lg bg-body-tertiary">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{% url 'panel' %}">
+            <img src="{% static 'img/logo.png' %}" alt="Logo LIGE" style="max-height: 90px;">
+        </a>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><span class="navbar-text">Hola, {{ user.first_name|default:user.username }}</span></li>
+                <li class="nav-item ms-3">
+                    <form method="post" action="{% url 'logout' %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-link btn btn-link p-0">Cerrar Sesión</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+{% endif %}
+<main style="background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); min-height: 100vh; padding: 2rem 0;">
+<div class="container px-4" style="max-width: 700px;">
+
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <h2 class="text-white m-0 fw-bold">🗺 {{ accion }} parcela</h2>
+    <a href="{% url 'carteles_parcelas_lista' %}" class="btn btn-outline-light btn-sm">← Volver</a>
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="alert alert-{{ msg.tags|default:'danger' }} alert-dismissible fade show">
+        {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="rounded-3 p-4" style="background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.1);">
+    <form method="post">
+      {% csrf_token %}
+
+      <p class="text-white-50 small text-uppercase mb-3">Nomenclatura catastral</p>
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+          <label class="text-white-50 small mb-1">Circunscripción</label>
+          <input type="text" name="circunscripcion" value="{{ parcela.circunscripcion|default:'' }}"
+                 class="form-control bg-transparent text-white border-secondary">
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="text-white-50 small mb-1">Sección</label>
+          <input type="text" name="seccion" value="{{ parcela.seccion|default:'' }}"
+                 class="form-control bg-transparent text-white border-secondary">
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="text-white-50 small mb-1">Chacra</label>
+          <input type="text" name="chacra" value="{{ parcela.chacra|default:'' }}"
+                 class="form-control bg-transparent text-white border-secondary">
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="text-white-50 small mb-1">Parcela Nro</label>
+          <input type="text" name="parcela_nro" value="{{ parcela.parcela_nro|default:'' }}"
+                 class="form-control bg-transparent text-white border-secondary">
+        </div>
+      </div>
+
+      <p class="text-white-50 small text-uppercase mb-3">Ubicación</p>
+      <div class="row g-3 mb-4">
+        <div class="col-8">
+          <label class="text-white-50 small mb-1">Dirección</label>
+          <input type="text" name="direccion" value="{{ parcela.direccion|default:'' }}"
+                 class="form-control bg-transparent text-white border-secondary">
+        </div>
+        <div class="col-4">
+          <label class="text-white-50 small mb-1">Localidad</label>
+          <input type="text" name="localidad" value="{{ parcela.localidad|default:'' }}"
+                 class="form-control bg-transparent text-white border-secondary">
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="text-white-50 small text-uppercase mb-1">Propietario del terreno</label>
+        <select name="propietario_terreno_id"
+                class="form-select bg-transparent text-white border-secondary">
+          <option value="">— Sin propietario asignado —</option>
+          {% for persona in personas %}
+            <option value="{{ persona.id }}"
+              {% if parcela and parcela.propietario_terreno_id == persona.id %}selected{% endif %}>
+              {{ persona.nombre_completo }} ({{ persona.cuit_dni }})
+            </option>
+          {% endfor %}
+        </select>
+        <div class="mt-1">
+          <a href="{% url 'carteles_personas_crear' %}" class="text-white-50 small">
+            + Crear nueva persona
+          </a>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="text-white-50 small text-uppercase mb-1">Observaciones</label>
+        <textarea name="observaciones" rows="2"
+                  class="form-control bg-transparent text-white border-secondary">{{ parcela.observaciones|default:'' }}</textarea>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-success px-4">Guardar</button>
+        <a href="{% url 'carteles_parcelas_lista' %}" class="btn btn-outline-light">Cancelar</a>
+      </div>
+    </form>
+  </div>
+
+</div>
+</main>
+{% endblock body %}

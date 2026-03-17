@@ -17,3 +17,6 @@ __pycache__/
 
 # Archivos de VS Code
 .vscode/
+
+# archivos de redes neuronales
+#carteles/servicios/carteles_yolo.pt

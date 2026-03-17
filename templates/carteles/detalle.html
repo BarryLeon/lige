@@ -63,9 +63,15 @@
 
   {# ── Navegación ──────────────────────────────────────────────────────── #}
   <div class="mb-4">
-    <a href="{% url 'carteles_lista' %}" class="text-white-50 text-decoration-none small">
-      ← Volver al listado
-    </a>
+    {% if request.GET.next == 'informes' %}
+      <a href="{% url 'carteles_informes' %}" class="text-white-50 text-decoration-none small">
+        ← Volver a informes
+      </a>
+    {% else %}
+      <a href="{% url 'carteles_lista' %}" class="text-white-50 text-decoration-none small">
+        ← Volver al listado
+      </a>
+    {% endif %}
   </div>
 
   {# ── Mensajes ────────────────────────────────────────────────────────── #}
@@ -279,9 +285,113 @@
           </button>
         </form>
         {% endif %}
-        <a href="{% url 'carteles_lista' %}" class="btn btn-outline-light">
-          ← Volver al listado
-        </a>
+        {% if request.GET.next == 'informes' %}
+        <a href="{% url 'carteles_informes' %}" class="btn btn-outline-light">← Volver a informes</a>
+        {% else %}
+        <a href="{% url 'carteles_lista' %}" class="btn btn-outline-light">← Volver al listado</a>
+        {% endif %}
+      </div>
+
+      {# ── Gestión: parcela y propietario ────────────────────────────────── #}
+      <div class="rounded-3 p-4"
+           style="background: rgba(0,0,0,0.30); border: 1px solid rgba(255,255,255,0.08);">
+        <p class="text-white-50 small text-uppercase mb-3">Datos de gestión</p>
+        <form method="post" action="{% url 'carteles_gestion' cartel.id %}">
+          {% csrf_token %}
+          <div class="row g-3 mb-3">
+            <div class="col-12">
+              <label class="text-white-50 small mb-1">Parcela / Terreno</label>
+              <select name="parcela_id" class="form-select bg-transparent text-white border-secondary">
+                <option value="">— Sin parcela asignada —</option>
+                {% for p in parcelas %}
+                  <option value="{{ p.id }}" {% if cartel.parcela_id == p.id %}selected{% endif %}>
+                    {{ p.nomenclatura }} — {{ p.direccion|default:"sin dirección" }}
+                  </option>
+                {% endfor %}
+              </select>
+              <a href="{% url 'carteles_parcelas_crear' %}" class="text-white-50 small mt-1 d-inline-block">+ Nueva parcela</a>
+            </div>
+            <div class="col-12">
+              <label class="text-white-50 small mb-1">Propietario del cartel</label>
+              <select name="propietario_id" class="form-select bg-transparent text-white border-secondary">
+                <option value="">— Sin propietario asignado —</option>
+                {% for p in personas %}
+                  <option value="{{ p.id }}" {% if cartel.propietario_cartel_id == p.id %}selected{% endif %}>
+                    {{ p.nombre_completo }} ({{ p.cuit_dni }})
+                  </option>
+                {% endfor %}
+              </select>
+              <a href="{% url 'carteles_personas_crear' %}" class="text-white-50 small mt-1 d-inline-block">+ Nueva persona</a>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-outline-light btn-sm px-4">Guardar</button>
+        </form>
+      </div>
+
+      {# ── Historial de publicidad ──────────────────────────────────────── #}
+      <div class="rounded-3 p-4"
+           style="background: rgba(0,0,0,0.30); border: 1px solid rgba(255,255,255,0.08);">
+        <p class="text-white-50 small text-uppercase mb-3">Historial de publicidad</p>
+
+        {% if historial %}
+        <div class="mb-3">
+          {% for pub in historial %}
+          <div class="d-flex justify-content-between align-items-center py-2"
+               style="border-bottom: 1px solid rgba(255,255,255,0.07);">
+            <div>
+              <span class="text-white">{{ pub.empresa }}</span>
+              {% if pub.es_actual %}
+                <span class="badge bg-success ms-2">Actual</span>
+              {% endif %}
+              <div class="text-white-50 small">
+                {% if pub.fecha_desde %}Desde {{ pub.fecha_desde|date:"d/m/Y" }}{% endif %}
+                {% if pub.fecha_hasta %} hasta {{ pub.fecha_hasta|date:"d/m/Y" }}{% endif %}
+              </div>
+            </div>
+            <form method="post" action="{% url 'carteles_pub_eliminar' cartel.id pub.id %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline-danger"
+                      onclick="return confirm('¿Eliminar este registro?')">✕</button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+          <p class="text-white-50 small mb-3">Sin registros de publicidad.</p>
+        {% endif %}
+
+        {# Agregar nueva publicidad #}
+        <form method="post" action="{% url 'carteles_pub_agregar' cartel.id %}">
+          {% csrf_token %}
+          <p class="text-white-50 small mb-2">Agregar empresa:</p>
+          <div class="row g-2">
+            <div class="col-12 col-md-5">
+              <style>
+                  .placeholder-gris::placeholder {
+                      color: #adb5bd !important;
+                      opacity: 1;
+                  }
+              </style>
+              <input type="text" name="empresa" required
+                     class="form-control bg-transparent text-white border-secondary placeholder-gris"
+                     placeholder="Nombre de la empresa">
+            </div>
+            <div class="col-6 col-md-3">
+              <input type="date" name="fecha_desde"
+                     class="form-control bg-transparent text-white border-secondary"
+                     title="Fecha desde">
+            </div>
+            <div class="col-6 col-md-3">
+              <input type="date" name="fecha_hasta"
+                     class="form-control bg-transparent text-white border-secondary"
+                     title="Fecha hasta (vacío = actual)">
+            </div>
+            <div class="col-12 col-md-1">
+              <button type="submit" class="btn btn-success w-100">+</button>
+            </div>
+          </div>
+          <p class="text-white-50 small mt-1">Dejá "Fecha hasta" vacío si es la publicidad actual.</p>
+        </form>
       </div>
 
       {# Descartar / Restaurar #}
@@ -298,7 +408,7 @@
           {% csrf_token %}
           <div class="mb-3">
             <textarea name="motivo" rows="2" required
-                      class="form-control text-white border-secondary"
+                      class="form-control text-white border-secondary placeholder-gris"
                       style="background: rgba(255,255,255,0.08);"
                       placeholder="Motivo del descarte (obligatorio)..."></textarea>
           </div>

@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Informes y estadísticas{% endblock %}
+
+{% block body %}
+
+{% if user.is_authenticated %}
+<nav class="navbar navbar-expand-lg bg-body-tertiary">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{% url 'panel' %}">
+            <img src="{% static 'img/logo.png' %}" alt="Logo LIGE" style="max-height: 90px;">
+        </a>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button"
+                       data-bs-toggle="dropdown" style="font-size: 30px;">Publivial</a>
+                    <ul class="dropdown-menu">
+                        <li class="dropdown-submenu">
+                            <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown">Mar Chiquita</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'home' %}">Plusvalia Tipantu</a></li>
+                            </ul>
+                        </li>
+                        <li class="dropdown-submenu">
+                            <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown">Dolores</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'carteles_lista' %}">Relevamiento de carteles</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" style="font-size: 30px;">Vista Cristal</a>
+                </li>
+            </ul>
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <span class="navbar-text">Hola, {{ user.first_name|default:user.username }}</span>
+                </li>
+                <li class="nav-item ms-3">
+                    <form method="post" action="{% url 'logout' %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-link btn btn-link p-0">Cerrar Sesión</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+{% endif %}
+
+<main style="background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); min-height: 100vh; padding: 2rem 0;">
+<div class="container-fluid px-4">
+
+  {# ── Encabezado ──────────────────────────────────────────────────────── #}
+  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <h2 class="text-white m-0 fw-bold">📊 Informes y estadísticas</h2>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{% url 'carteles_personas_lista' %}" class="btn btn-outline-light btn-sm">👤 Personas</a>
+      <a href="{% url 'carteles_parcelas_lista' %}" class="btn btn-outline-light btn-sm">🗺 Parcelas</a>
+      <a href="{% url 'carteles_exportar_excel' %}?{{ request.GET.urlencode }}"
+         class="btn btn-success btn-sm">⬇️ Excel</a>
+      <a href="{% url 'carteles_exportar_pdf' %}?{{ request.GET.urlencode }}"
+         class="btn btn-danger btn-sm">⬇️ PDF</a>
+      <a href="{% url 'carteles_lista' %}" class="btn btn-outline-light btn-sm">← Volver al listado</a>
+    </div>
+  </div>
+
+  {# ── Mensajes ────────────────────────────────────────────────────────── #}
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show">
+        {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  {# ── Tarjetas de totales ─────────────────────────────────────────────── #}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card text-white text-center h-100"
+           style="background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.2);">
+        <div class="card-body py-3">
+          <div class="fs-1 fw-bold">{{ stats.total_carteles }}</div>
+          <div class="small text-white-50">Carteles activos</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-white text-center h-100"
+           style="background: rgba(25,135,84,0.35); border: 1px solid rgba(25,135,84,0.5);">
+        <div class="card-body py-3">
+          <div class="fs-1 fw-bold">{{ stats.superficie_total|floatformat:1 }}</div>
+          <div class="small text-white-50">m² total relevados</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-white text-center h-100"
+           style="background: rgba(255,193,7,0.25); border: 1px solid rgba(255,193,7,0.4);">
+        <div class="card-body py-3">
+          <div class="fs-1 fw-bold">{{ stats.sin_propietario }}</div>
+          <div class="small text-white-50">Sin propietario asignado</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-white text-center h-100"
+           style="background: rgba(220,53,69,0.25); border: 1px solid rgba(220,53,69,0.4);">
+        <div class="card-body py-3">
+          <div class="fs-1 fw-bold">{{ stats.sin_parcela }}</div>
+          <div class="small text-white-50">Sin parcela asignada</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Gráficos ────────────────────────────────────────────────────────── #}
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-6">
+      <div class="rounded-3 p-3" style="background: rgba(0,0,0,0.3);">
+        <p class="text-white-50 small text-uppercase mb-2">Carteles por tipo</p>
+        {% for item in stats.por_tipo %}
+          {% if item.tipo_cartel %}
+          <div class="mb-2">
+            <div class="d-flex justify-content-between text-white small mb-1">
+              <span>{{ item.tipo_cartel|capfirst }}</span>
+              <span>{{ item.cantidad }} ({{ item.superficie|floatformat:1|default:"—" }} m²)</span>
+            </div>
+            <div class="progress" style="height: 6px; background: rgba(255,255,255,0.1);">
+              <div class="progress-bar bg-success"
+                   style="width: {% widthratio item.cantidad stats.total_carteles 100 %}%"></div>
+            </div>
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    <div class="col-12 col-md-6">
+      <div class="rounded-3 p-3" style="background: rgba(0,0,0,0.3);">
+        <p class="text-white-50 small text-uppercase mb-2">Carteles por estado físico</p>
+        {% for item in stats.por_estado_fisico %}
+          {% if item.estado_cartel %}
+          <div class="mb-2">
+            <div class="d-flex justify-content-between text-white small mb-1">
+              <span>{{ item.estado_cartel|capfirst }}</span>
+              <span>{{ item.cantidad }}</span>
+            </div>
+            <div class="progress" style="height: 6px; background: rgba(255,255,255,0.1);">
+              <div class="progress-bar
+                {% if item.estado_cartel == 'bueno' %}bg-success
+                {% elif item.estado_cartel == 'regular' %}bg-warning
+                {% else %}bg-danger{% endif %}"
+                   style="width: {% widthratio item.cantidad stats.total_carteles 100 %}%"></div>
+            </div>
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {# ── Buscador ────────────────────────────────────────────────────────── #}
+  <div class="rounded-3 p-4 mb-4" style="background: rgba(0,0,0,0.3);">
+    <form method="get" action="{% url 'carteles_informes' %}">
+      <div class="row g-3">
+        <div class="col-12 col-md-5">
+          <input type="text" name="q" value="{{ q }}"
+                 class="form-control bg-transparent text-white border-secondary"
+                 placeholder="Buscar en texto OCR, observaciones, operador, propietario, empresa...">
+        </div>
+        <div class="col-6 col-md-2">
+          <input type="date" name="fecha_desde" value="{{ fecha_desde }}"
+                 class="form-control bg-transparent text-white border-secondary"
+                 title="Fecha desde">
+        </div>
+        <div class="col-6 col-md-2">
+          <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}"
+                 class="form-control bg-transparent text-white border-secondary"
+                 title="Fecha hasta">
+        </div>
+        <div class="col-6 col-md-1">
+          <select name="tipo_cartel" class="form-select bg-transparent text-white border-secondary">
+            <option value="">Tipo</option>
+            {% for val, label in tipo_choices %}
+              <option value="{{ val }}" {% if tipo_cartel == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-1">
+          <select name="estado_proc" class="form-select bg-transparent text-white border-secondary">
+            <option value="">Estado</option>
+            <option value="ok"       {% if estado_proc == 'ok' %}selected{% endif %}>OK</option>
+            <option value="error"    {% if estado_proc == 'error' %}selected{% endif %}>Error</option>
+            <option value="pendiente"{% if estado_proc == 'pendiente' %}selected{% endif %}>Pendiente</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-1 d-flex gap-2">
+          <button type="submit" class="btn btn-success flex-grow-1">🔍</button>
+          <a href="{% url 'carteles_informes' %}" class="btn btn-outline-secondary">✕</a>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  {# ── Resultados ──────────────────────────────────────────────────────── #}
+  {% if q or fecha_desde or fecha_hasta or tipo_cartel or estado_proc %}
+    <p class="text-white-50 small mb-2">{{ carteles|length }} resultado(s)</p>
+  {% endif %}
+
+  {% if carteles %}
+  <div class="table-responsive rounded-3" style="background: rgba(0,0,0,0.30);">
+    <table class="table table-dark table-hover align-middle mb-0 small">
+      <thead style="border-bottom: 2px solid rgba(255,255,255,0.12);">
+        <tr class="text-white-50 text-uppercase">
+          <th class="ps-3">#</th>
+          <th>Foto</th>
+          <th>Tipo / Estado</th>
+          <th>Parcela</th>
+          <th>Prop. terreno</th>
+          <th>Prop. cartel</th>
+          <th>Publicidad actual</th>
+          <th>Superficie</th>
+          <th>Texto OCR</th>
+          <th>Fecha</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in carteles %}
+        <tr>
+          <td class="ps-3 text-white-50">{{ c.id }}</td>
+          <td>
+            {% if c.foto_anotada %}
+              <img src="{{ c.foto_anotada.url }}" width="70" height="50" class="rounded" style="object-fit:cover;">
+            {% elif c.foto %}
+              <img src="{{ c.foto.url }}" width="70" height="50" class="rounded" style="object-fit:cover;">
+            {% else %}
+              <span class="text-danger">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="text-white">{{ c.get_tipo_cartel_display|default:"—" }}</div>
+            {% if c.estado_cartel == 'bueno' %}<span class="badge bg-success">Bueno</span>
+            {% elif c.estado_cartel == 'regular' %}<span class="badge bg-warning text-dark">Regular</span>
+            {% elif c.estado_cartel == 'malo' %}<span class="badge bg-danger">Malo</span>{% endif %}
+          </td>
+          <td class="text-white">
+            {% if c.parcela %}
+              {{ c.parcela.nomenclatura }}<br>
+              <span class="text-white-50">{{ c.parcela.direccion|default:"" }}</span>
+            {% else %}
+              <span class="text-warning small">Sin parcela</span>
+            {% endif %}
+          </td>
+          <td class="text-white">
+            {% if c.parcela and c.parcela.propietario_terreno %}
+              {{ c.parcela.propietario_terreno.nombre_completo }}
+            {% else %}<span class="text-white-50">—</span>{% endif %}
+          </td>
+          <td class="text-white">
+            {% if c.propietario_cartel %}
+              {{ c.propietario_cartel.nombre_completo }}
+            {% else %}
+              <span class="text-warning small">Sin propietario</span>
+            {% endif %}
+          </td>
+          <td class="text-white">
+            {% with pub=c.publicidad_actual %}
+              {% if pub %}{{ pub.empresa }}
+              {% else %}<span class="text-white-50">—</span>{% endif %}
+            {% endwith %}
+          </td>
+          <td>
+            {% if c.superficie_m2 %}
+              <span class="text-success fw-bold">{{ c.superficie_m2|floatformat:2 }} m²</span>
+            {% else %}<span class="text-white-50">—</span>{% endif %}
+          </td>
+          <td class="text-white-50" style="max-width:180px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;"
+              title="{{ c.texto_ocr|default:'' }}">
+            {{ c.texto_ocr|default:"—"|truncatechars:40 }}
+          </td>
+          <td class="text-white-50">
+            {% if c.fecha %}{{ c.fecha|date:"d/m/Y" }}{% else %}—{% endif %}
+          </td>
+          <td class="pe-3">
+            <a href="{% url 'carteles_detalle' c.id %}?next=informes" class="btn btn-sm btn-outline-light">Ver →</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5">
+    <p class="text-white-50 fs-5">No hay resultados para los filtros seleccionados.</p>
+  </div>
+  {% endif %}
+
+</div>
+</main>
+
+{% endblock body %}
