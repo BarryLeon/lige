@@ -1,0 +1,28 @@
+carteles_v2 ES EL QUE ESTA EN PRODUCCION
+billboard:
+    Precision: 0.705
+    Recall:    0.487
+    mAP50:     0.576
+    mAP50-95:  0.313
+  traffic_panel:
+    Precision: 0.920
+    Recall:    0.914
+    mAP50:     0.958
+    mAP50-95:  0.826
+── Totales ─────────────────────────────────────────
+  mAP50:    0.767
+  mAP50-95: 0.570
+
+
+carteles_yolo_billboard SOLO CARTELES PUBLICITARIOS
+/home/ivo/Programas/peste/ia/runs/detect/carteles_billboard_v14/weights/best.pt
+Métricas ────────────────────────────────────────
+  billboard:
+    Precision: 0.893
+    Recall:    0.833
+    mAP50:     0.916
+    mAP50-95:  0.672
+── Totales ─────────────────────────────────────────
+  mAP50:    0.916
+  mAP50-95: 0.672
+
