@@ -19,4 +19,4 @@ __pycache__/
 .vscode/
 
 # archivos de redes neuronales
-#carteles/servicios/carteles_yolo.pt
+carteles/servicios/carteles_yolo.pt
