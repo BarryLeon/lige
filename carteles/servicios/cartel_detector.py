@@ -320,16 +320,18 @@ def detectar_cartel(ruta_imagen: str, distancia_m: float) -> dict:
     img_out = imagen.copy()
     x, y, w, h = bbox["x"], bbox["y"], bbox["w"], bbox["h"]
     color = (0, 165, 255) if zoom_flag else (0, 220, 0)
-    cv2.rectangle(img_out, (x, y), (x + w, y + h), color, 3)
+    grosor = max(2, int(min(alto_total, ancho_total)*0.002))
+    cv2.rectangle(img_out, (x, y), (x + w, y + h), color, grosor)
+    escala = max(0.5, min(2.0, ancho_total) / 1000)
     cv2.putText(img_out,
                 f"{ancho_m:.2f}m x {alto_m:.2f}m = {superficie_m2:.2f}m2",
                 (x, max(y - 12, 30)),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+                cv2.FONT_HERSHEY_SIMPLEX, escala, color, grosor)
     aviso = "⚠ ZOOM/DIST?" if zoom_flag else ""
     cv2.putText(img_out,
                 f"[{metodo}] FOV:{fov_h:.1f}° dist:{distancia_m}m {aviso}",
                 (10, alto_total - 15),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+                cv2.FONT_HERSHEY_SIMPLEX, escala, (255, 255, 0), grosor)
 
     # ── OCR sobre el recorte del bbox ────────────────────────────────────────
     ocr = extraer_texto(ruta_imagen, bbox)
