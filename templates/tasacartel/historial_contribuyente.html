@@ -1,0 +1,123 @@
+{% extends "layout_interno.html" %}
+{% load static %}
+
+{% block contenido_panel %}
+<div class="container-fluid px-4" style="max-width: 1000px; width: 100%;">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="text-white mb-0">Historial del contribuyente</h2>
+      <p class="text-muted mb-0">{{ persona.nombre_completo }} — {{ persona.cuit_dni }}</p>
+    </div>
+    <a href="{% url 'tasacartel:liquidaciones_lista' %}" class="btn btn-outline-light btn-sm">← Volver</a>
+  </div>
+
+  {# Resumen estadístico #}
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card bg-dark text-white border-secondary text-center p-3">
+        <div class="fs-4 fw-bold">{{ liquidaciones|length }}</div>
+        <div class="small text-muted">Liquidaciones totales</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-dark text-white border-success text-center p-3">
+        <div class="fs-4 fw-bold text-success">
+          {{ liquidaciones|selectattr:"estado","equalto","pagada"|list|length }}
+        </div>
+        <div class="small text-muted">Pagadas</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-dark text-white border-warning text-center p-3">
+        <div class="fs-4 fw-bold text-warning">
+          {{ liquidaciones|selectattr:"estado","equalto","en_plan"|list|length }}
+        </div>
+        <div class="small text-muted">En plan de pago</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-dark text-white border-danger text-center p-3">
+        <div class="fs-4 fw-bold text-danger">
+          {{ liquidaciones|selectattr:"estado","equalto","notificada"|list|length }}
+        </div>
+        <div class="small text-muted">Notificadas / pendientes</div>
+      </div>
+    </div>
+  </div>
+
+  {# Tabla de historial #}
+  <div class="card bg-dark text-white border-secondary">
+    <div class="card-header border-secondary">
+      <h6 class="mb-0">Todas las liquidaciones</h6>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-dark table-hover table-bordered mb-0">
+        <thead class="table-secondary text-dark">
+          <tr>
+            <th>#</th>
+            <th>Cartel</th>
+            <th>Rol en esta liquidación</th>
+            <th>Períodos</th>
+            <th>Total deuda</th>
+            <th>Estado</th>
+            <th>Versión</th>
+            <th>Fecha</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for liq in liquidaciones %}
+          <tr>
+            <td>{{ liq.id }}</td>
+            <td>#{{ liq.cartel_id }}</td>
+            <td class="small">
+              {% if liq.propietario_cartel == persona %}
+                <span class="badge bg-info text-dark">Prop. cartel</span>
+              {% endif %}
+              {% if liq.propietario_terreno == persona %}
+                <span class="badge bg-secondary">Prop. terreno</span>
+              {% endif %}
+              {% if liq.empresa_publicista == persona %}
+                <span class="badge bg-primary">Publicista</span>
+              {% endif %}
+            </td>
+            <td class="small">
+              {% for p in liq.periodos.all %}
+                <span class="badge bg-dark border border-secondary">{{ p.anio_fiscal }}</span>
+              {% endfor %}
+            </td>
+            <td><strong>${{ liq.monto_total|floatformat:2 }}</strong></td>
+            <td>
+              <span class="badge
+                {% if liq.estado == 'borrador' %}bg-secondary
+                {% elif liq.estado == 'notificada' %}bg-primary
+                {% elif liq.estado == 'conformada' %}bg-success
+                {% elif liq.estado == 'en_plan' %}bg-warning text-dark
+                {% elif liq.estado == 'pagada' %}bg-success
+                {% elif liq.estado == 'objetada' %}bg-danger
+                {% endif %}">
+                {{ liq.get_estado_display }}
+              </span>
+            </td>
+            <td class="text-center">v{{ liq.version }}</td>
+            <td class="small">{{ liq.fecha_determinacion }}</td>
+            <td>
+              <a href="{% url 'tasacartel:liquidacion_detalle' liq.pk %}"
+                 class="btn btn-sm btn-outline-light">Ver</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center text-muted py-4">
+              Este contribuyente no tiene liquidaciones registradas.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock contenido_panel %}

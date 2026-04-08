@@ -229,13 +229,15 @@ def agregar_publicidad(request, pk):
         return redirect("carteles_detalle", pk=pk)
 
     cartel = get_object_or_404(Cartel, pk=pk)
-    empresa     = request.POST.get("empresa", "").strip()
+    empresa_id  = request.POST.get("empresa_id", "").strip()
     fecha_desde = request.POST.get("fecha_desde") or None
     fecha_hasta = request.POST.get("fecha_hasta") or None
 
-    if not empresa:
-        messages.error(request, "El nombre de la empresa es obligatorio.")
+    if not empresa_id:
+        messages.error(request, "Debés seleccionar una empresa.")
         return redirect("carteles_detalle", pk=pk)
+
+    empresa = get_object_or_404(Persona, pk=empresa_id)
 
     # Si no tiene fecha_hasta es la actual: cerrar la publicidad anterior
     if not fecha_hasta:
@@ -249,7 +251,7 @@ def agregar_publicidad(request, pk):
         fecha_desde=fecha_desde,
         fecha_hasta=fecha_hasta,
     )
-    messages.success(request, f"Publicidad de '{empresa}' agregada.")
+    messages.success(request, f"Publicidad de '{empresa.nombre_completo()}' agregada.")
     return redirect("carteles_detalle", pk=pk)
 
 

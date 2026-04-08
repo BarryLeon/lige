@@ -269,14 +269,21 @@ class Cartel(models.Model):
 
 class HistorialPublicidad(models.Model):
     """
-    Empresa que publicita en el cartel en un período determinado.
+    Empresa/persona que publicita en el cartel en un período determinado.
     Solo una activa a la vez por cartel (fecha_hasta=None es la actual).
+    La empresa publicista debe estar registrada como Persona en el sistema.
     """
     cartel = models.ForeignKey(
         Cartel, on_delete=models.CASCADE,
         related_name="historial_publicidad",
     )
-    empresa     = models.CharField(max_length=300)
+    empresa = models.ForeignKey(
+        Persona,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="publicidades",
+        help_text="Empresa o persona que publicita en el cartel",
+    )
     fecha_desde = models.DateField(null=True, blank=True)
     fecha_hasta = models.DateField(
         null=True, blank=True,
@@ -291,7 +298,12 @@ class HistorialPublicidad(models.Model):
 
     def __str__(self):
         estado = "actual" if not self.fecha_hasta else str(self.fecha_hasta)
-        return f"{self.empresa} — Cartel #{self.cartel_id} (hasta {estado})"
+        nombre = self.empresa.nombre_completo() if self.empresa else "Sin empresa"
+        return f"{nombre} — Cartel #{self.cartel_id} (hasta {estado})"
 
     def es_actual(self):
         return self.fecha_hasta is None
+
+    def nombre_empresa(self):
+        """Devuelve el nombre de la empresa para usar en templates."""
+        return self.empresa.nombre_completo() if self.empresa else "—"

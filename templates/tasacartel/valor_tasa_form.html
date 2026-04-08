@@ -1,0 +1,59 @@
+{% extends "layout_interno.html" %}
+{% load static %}
+
+{% block contenido_panel %}
+<div class="container-fluid px-4" style="max-width: 600px; width: 100%;">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-white mb-0">{{ page_title }}</h2>
+    <a href="{% url 'tasacartel:valores_tasa_lista' %}" class="btn btn-outline-light btn-sm">
+      ← Volver
+    </a>
+  </div>
+
+  <div class="card bg-dark text-white border-secondary">
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label class="form-label">Año fiscal</label>
+          {{ form.anio }}
+          {% if form.anio.errors %}
+            <div class="text-danger small mt-1">{{ form.anio.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Valor por m² ($)</label>
+          {{ form.valor_m2 }}
+          {% if form.valor_m2.errors %}
+            <div class="text-danger small mt-1">{{ form.valor_m2.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Recargo publicidad iluminada (%)</label>
+          {{ form.recargo_iluminado_pct }}
+          <div class="form-text text-muted">Desde 2026: 25%. Años anteriores: 0%.</div>
+          {% if form.recargo_iluminado_pct.errors %}
+            <div class="text-danger small mt-1">{{ form.recargo_iluminado_pct.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label">Observaciones</label>
+          {{ form.observaciones }}
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-success">{{ accion }}</button>
+          <a href="{% url 'tasacartel:valores_tasa_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock contenido_panel %}

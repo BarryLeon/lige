@@ -339,7 +339,7 @@
           <div class="d-flex justify-content-between align-items-center py-2"
                style="border-bottom: 1px solid rgba(255,255,255,0.07);">
             <div>
-              <span class="text-white">{{ pub.empresa }}</span>
+              <span class="text-white">{{ pub.nombre_empresa }}</span>
               {% if pub.es_actual %}
                 <span class="badge bg-success ms-2">Actual</span>
               {% endif %}
@@ -366,15 +366,16 @@
           <p class="text-white-50 small mb-2">Agregar empresa:</p>
           <div class="row g-2">
             <div class="col-12 col-md-5">
-              <style>
-                  .placeholder-gris::placeholder {
-                      color: #adb5bd !important;
-                      opacity: 1;
-                  }
-              </style>
-              <input type="text" name="empresa" required
-                     class="form-control bg-transparent text-white border-secondary placeholder-gris"
-                     placeholder="Nombre de la empresa">
+              <select name="empresa_id" required
+                      class="form-select bg-transparent text-white border-secondary">
+                <option value="">— Seleccioná una empresa —</option>
+                {% for p in personas %}
+                  <option value="{{ p.id }}">{{ p.nombre_completo }} ({{ p.cuit_dni }})</option>
+                {% endfor %}
+              </select>
+              <a href="{% url 'carteles_personas_crear' %}" class="text-white-50 small mt-1 d-inline-block">
+                + Crear nueva persona/empresa
+              </a>
             </div>
             <div class="col-6 col-md-3">
               <input type="date" name="fecha_desde"
@@ -408,7 +409,7 @@
           {% csrf_token %}
           <div class="mb-3">
             <textarea name="motivo" rows="2" required
-                      class="form-control text-white border-secondary placeholder-gris"
+                      class="form-control text-white border-secondary"
                       style="background: rgba(255,255,255,0.08);"
                       placeholder="Motivo del descarte (obligatorio)..."></textarea>
           </div>

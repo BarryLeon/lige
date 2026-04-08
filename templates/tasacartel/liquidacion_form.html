@@ -1,0 +1,338 @@
+{% extends "layout_interno.html" %}
+{% load static %}
+
+{% block contenido_panel %}
+<div class="container-fluid px-4" style="max-width: 900px; width: 100%;">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-white mb-0">{{ page_title }}</h2>
+    <a href="{% url 'tasacartel:liquidaciones_lista' %}" class="btn btn-outline-light btn-sm">← Volver</a>
+  </div>
+
+  {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags }} alert-dismissible fade show">
+      {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
+
+  {% if es_edicion %}
+  <div class="alert alert-warning">
+    <strong>Atención:</strong> Estás generando una nueva versión de la Liquidación #{{ original.id }}
+    (v{{ original.version }}). La versión original quedará en el historial.
+  </div>
+  {% endif %}
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    {# ── Cartel y superficie ── #}
+    <div class="card bg-dark text-white border-secondary mb-4">
+      <div class="card-header border-secondary"><h5 class="mb-0">Cartel</h5></div>
+      <div class="card-body">
+        <div class="row g-3">
+
+          <div class="col-md-6">
+            <label class="form-label">Cartel</label>
+            {{ form.cartel }}
+            {% if form.cartel.errors %}
+              <div class="text-danger small mt-1">{{ form.cartel.errors }}</div>
+            {% endif %}
+          </div>
+
+          {# Info del cartel — se completa vía AJAX al elegir #}
+          <div class="col-md-6">
+            <div id="cartel-info" class="rounded p-2 border border-secondary small text-muted"
+                 style="min-height: 60px;">
+              <span class="fst-italic">Seleccioná un cartel para ver sus datos...</span>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">
+              Superficie liquidada (m²)
+              <span class="text-muted small">— del detector, editable si hay objeción</span>
+            </label>
+            {{ form.superficie_m2 }}
+            {% if form.superficie_m2.errors %}
+              <div class="text-danger small mt-1">{{ form.superficie_m2.errors }}</div>
+            {% endif %}
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    {# ── Condiciones especiales ── #}
+    <div class="card bg-dark text-white border-secondary mb-4">
+      <div class="card-header border-secondary"><h5 class="mb-0">Condiciones especiales</h5></div>
+      <div class="card-body">
+        <div class="row g-3">
+
+          <div class="col-md-4">
+            <div class="form-check form-switch mt-2">
+              {{ form.es_iluminado }}
+              <label class="form-check-label ms-2">Publicidad iluminada</label>
+            </div>
+            <div class="form-text text-muted">+25% desde 2026.</div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="form-check form-switch mt-2">
+              {{ form.aplica_descuento_ruta63 }}
+              <label class="form-check-label ms-2">Descuento Ruta 63 (km 5+)</label>
+            </div>
+            <div class="form-text text-muted">−30% sobre el valor base.</div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="form-check form-switch mt-2">
+              {{ form.sobre_ruta2 }}
+              <label class="form-check-label ms-2">Sobre Ruta 2 (sin descuento)</label>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Kilómetro en Ruta 63</label>
+            {{ form.km_ruta63 }}
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Observaciones</label>
+            {{ form.observaciones }}
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    {# ── Períodos a liquidar ── #}
+    <div class="card bg-dark text-white border-secondary mb-4">
+      <div class="card-header border-secondary d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Períodos a liquidar</h5>
+        <button type="button" class="btn btn-sm btn-outline-success" id="agregar-periodo">+ Agregar año</button>
+      </div>
+      <div class="card-body">
+
+        {{ formset.management_form }}
+
+        <div id="formset-container">
+          {% for pform in formset %}
+          <div class="periodo-form border border-secondary rounded p-3 mb-3">
+            <div class="row g-3 align-items-end">
+
+              <div class="col-md-5">
+                <label class="form-label">Año / Valor de tasa</label>
+                {{ pform.valor_tasa }}
+                {% if pform.valor_tasa.errors %}
+                  <div class="text-danger small">{{ pform.valor_tasa.errors }}</div>
+                {% endif %}
+              </div>
+
+              <div class="col-md-2">
+                <label class="form-label">Año fiscal</label>
+                {{ pform.anio_fiscal }}
+              </div>
+
+              {# Valor m² se muestra como lectura — inamovible, viene de ValorTasaAnual #}
+              <div class="col-md-3">
+                <label class="form-label">Valor m² del año</label>
+                <div class="periodo-valor-m2-display form-control bg-secondary text-white border-0"
+                     style="cursor: default;">—</div>
+              </div>
+
+              <div class="col-md-2">
+                <label class="form-label">Tasa mora mens.</label>
+                {{ pform.tasa_mora_mensual }}
+              </div>
+
+              {% if formset.can_delete %}
+              <div class="col-12 d-flex justify-content-end">
+                <div class="form-check">
+                  {{ pform.DELETE }}
+                  <label class="form-check-label text-danger small ms-1">Quitar este período</label>
+                </div>
+              </div>
+              {% endif %}
+
+            </div>
+            {{ pform.id }}
+          </div>
+          {% endfor %}
+        </div>
+
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 mb-5">
+      <button type="submit" class="btn btn-success btn-lg">{{ accion }}</button>
+      <a href="{% url 'tasacartel:liquidaciones_lista' %}" class="btn btn-outline-secondary btn-lg">Cancelar</a>
+    </div>
+
+  </form>
+</div>
+
+<script>
+// ── Datos de tasas (para mostrar valor m² al elegir año) ──────────────────
+const VALORES_TASA = {{ valores_tasa_json|safe }};
+
+// Muestra el valor m² en el display de lectura del período
+function bindPeriodoForm(periodoDiv) {
+  const selectTasa   = periodoDiv.querySelector('.periodo-valor-tasa');
+  const displayValor = periodoDiv.querySelector('.periodo-valor-m2-display');
+  const inputAnio    = periodoDiv.querySelector('input[name$="-anio_fiscal"]');
+
+  if (!selectTasa) return;
+
+  function actualizarDesdeSelect() {
+    const pk = selectTasa.value;
+    if (pk && VALORES_TASA[pk]) {
+      const d = VALORES_TASA[pk];
+      if (displayValor) displayValor.textContent = `$${parseFloat(d.valor_m2).toLocaleString('es-AR', {minimumFractionDigits:2})} /m²`;
+      if (inputAnio && !inputAnio.value) inputAnio.value = d.anio;
+    } else {
+      if (displayValor) displayValor.textContent = '—';
+    }
+  }
+
+  selectTasa.addEventListener('change', actualizarDesdeSelect);
+  // Si ya tiene valor seleccionado (edición), mostrar de inmediato
+  actualizarDesdeSelect();
+}
+
+document.querySelectorAll('.periodo-form').forEach(bindPeriodoForm);
+
+// ── Agregar nuevo período ─────────────────────────────────────────────────
+(function () {
+  const container  = document.getElementById('formset-container');
+  const totalForms = document.querySelector('[name$="TOTAL_FORMS"]');
+
+  function buildOpciones() {
+    let opts = '<option value="">---------</option>';
+    // Ordenar por año desc
+    const sorted = Object.entries(VALORES_TASA).sort((a,b) => b[1].anio - a[1].anio);
+    for (const [pk, d] of sorted) {
+      opts += `<option value="${pk}">${d.anio} — $${parseFloat(d.valor_m2).toLocaleString('es-AR')}/m²</option>`;
+    }
+    return opts;
+  }
+
+  function buildPeriodoHTML(idx) {
+    return `
+    <div class="periodo-form border border-secondary rounded p-3 mb-3">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-5">
+          <label class="form-label">Año / Valor de tasa</label>
+          <select name="periodos-${idx}-valor_tasa" id="id_periodos-${idx}-valor_tasa"
+                  class="form-select periodo-valor-tasa">
+            ${buildOpciones()}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Año fiscal</label>
+          <input type="number" name="periodos-${idx}-anio_fiscal"
+                 id="id_periodos-${idx}-anio_fiscal" class="form-control">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Valor m² del año</label>
+          <div class="periodo-valor-m2-display form-control bg-secondary text-white border-0"
+               style="cursor:default;">—</div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Tasa mora mens.</label>
+          <input type="number" name="periodos-${idx}-tasa_mora_mensual"
+                 id="id_periodos-${idx}-tasa_mora_mensual"
+                 class="form-control" value="0.0400" step="0.0001">
+        </div>
+        <div class="col-12 d-flex justify-content-end">
+          <div class="form-check">
+            <input type="checkbox" name="periodos-${idx}-DELETE"
+                   id="id_periodos-${idx}-DELETE" class="form-check-input">
+            <label class="form-check-label text-danger small ms-1">Quitar este período</label>
+          </div>
+        </div>
+      </div>
+      <input type="hidden" name="periodos-${idx}-id" id="id_periodos-${idx}-id">
+    </div>`;
+  }
+
+  document.getElementById('agregar-periodo').addEventListener('click', function () {
+    const idx = parseInt(totalForms.value);
+    const div = document.createElement('div');
+    div.innerHTML = buildPeriodoHTML(idx);
+    const periodoDiv = div.firstElementChild;
+    container.appendChild(periodoDiv);
+    bindPeriodoForm(periodoDiv);
+    totalForms.value = idx + 1;
+  });
+})();
+
+// ── AJAX: traer datos del cartel al seleccionarlo ─────────────────────────
+(function () {
+  const selectCartel   = document.getElementById('id_cartel');
+  const inputSuperficie = document.getElementById('id_superficie_m2');
+  const infoDiv        = document.getElementById('cartel-info');
+
+  if (!selectCartel) return;
+
+  selectCartel.addEventListener('change', function () {
+    const cartelId = this.value;
+    if (!cartelId) {
+      infoDiv.innerHTML = '<span class="fst-italic">Seleccioná un cartel para ver sus datos...</span>';
+      return;
+    }
+
+    infoDiv.innerHTML = '<span class="text-muted">Cargando...</span>';
+
+    fetch(`/tasacartel/api/cartel/${cartelId}/`, {
+    headers: {
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    }
+})
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          infoDiv.innerHTML = `<span class="text-danger">${data.error}</span>`;
+          return;
+        }
+
+        // Autocompletar superficie solo si el campo está vacío o es cero
+        if (inputSuperficie && (!inputSuperficie.value || parseFloat(inputSuperficie.value) === 0)) {
+          if (data.superficie_m2 ) {
+            inputSuperficie.value = parseFloat(data.superficie_m2).toFixed(4);
+          }
+        }
+
+        // Mostrar resumen del cartel
+        const sup = data.superficie_m2
+          ? `${parseFloat(data.superficie_m2).toFixed(2)} m² (${parseFloat(data.ancho_m||0).toFixed(2)}m × ${parseFloat(data.alto_m||0).toFixed(2)}m)`
+          : '—';
+
+        infoDiv.innerHTML = `
+          <div class="row g-1 small">
+            <div class="col-6 text-muted">Tipo:</div>
+            <div class="col-6 text-white">${data.tipo_cartel}</div>
+            <div class="col-6 text-muted">Superficie detectada:</div>
+            <div class="col-6 text-success fw-bold">${sup}</div>
+            <div class="col-6 text-muted">Prop. cartel:</div>
+            <div class="col-6 text-white">${data.propietario_cartel}</div>
+            <div class="col-6 text-muted">Prop. terreno:</div>
+            <div class="col-6 text-white">${data.propietario_terreno}</div>
+            <div class="col-6 text-muted">Publicista:</div>
+            <div class="col-6 text-white">${data.empresa_publicista}</div>
+            <div class="col-6 text-muted">Ubicación:</div>
+            <div class="col-6 text-white">${data.ubicacion}</div>
+          </div>`;
+      })
+      .catch(() => {
+        infoDiv.innerHTML = '<span class="text-danger">Error al cargar datos del cartel.</span>';
+      });
+  });
+
+  // Si hay un cartel pre-seleccionado (edición), disparar al cargar
+  if (selectCartel.value) {
+    selectCartel.dispatchEvent(new Event('change'));
+  }
+})();
+</script>
+
+{% endblock contenido_panel %}

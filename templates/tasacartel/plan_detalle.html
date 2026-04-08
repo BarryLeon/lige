@@ -1,0 +1,131 @@
+{% extends "layout_interno.html" %}
+{% load static %}
+
+{% block contenido_panel %}
+<div class="container-fluid px-4" style="max-width: 900px; width: 100%;">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="text-white mb-0">Plan de pago #{{ plan.id }}</h2>
+      <small class="text-white">Suscripto el {{ plan.fecha_suscripcion }}
+        — Liquidación #{{ plan.liquidacion_id }}</small>
+    </div>
+    <a href="{% url 'tasacartel:liquidacion_detalle' plan.liquidacion_id %}"
+       class="btn btn-outline-light btn-sm">← Ver liquidación</a>
+  </div>
+
+  {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags }} alert-dismissible fade show">
+      {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
+
+  {# Resumen del plan #}
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card bg-dark text-white border-secondary text-center p-3">
+        <div class="small text-white mb-1">Deuda base del plan</div>
+        <div class="fs-5 fw-bold">${{ plan.monto_deuda_base|floatformat:2 }}</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-dark text-white border-secondary text-center p-3">
+        <div class="small text-white mb-1">Anticipo (cuota 1)</div>
+        <div class="fs-5 fw-bold">${{ plan.monto_anticipo|floatformat:2 }}</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-dark text-white border-secondary text-center p-3">
+        <div class="small text-white mb-1">Cuotas</div>
+        <div class="fs-5 fw-bold">{{ plan.cantidad_cuotas }} + anticipo</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-dark text-white border-secondary text-center p-3">
+        <div class="small text-white mb-1">Estado</div>
+        <span class="badge fs-6
+          {% if plan.estado == 'vigente' %}bg-primary
+          {% elif plan.estado == 'cumplido' %}bg-success
+          {% elif plan.estado == 'caducado' %}bg-danger
+          {% endif %}">
+          {{ plan.get_estado_display }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  {# Tabla de cuotas #}
+  <div class="card bg-dark text-white border-secondary">
+    <div class="card-header border-secondary">
+      <h6 class="mb-0">Detalle de cuotas</h6>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-dark table-hover table-bordered mb-0">
+        <thead class="table-secondary text-dark">
+          <tr>
+            <th>N° cuota</th>
+            <th>Capital</th>
+            <th>Interés</th>
+            <th>Total</th>
+            <th>Vencimiento</th>
+            <th>Estado</th>
+            <th>Fecha pago</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cuota in plan.cuotas.all %}
+          <tr class="{% if cuota.pagado %}table-success opacity-75{% elif cuota.fecha_vencimiento < today %}table-danger{% endif %}">
+            <td>
+              {{ cuota.nro_cuota }}
+              {% if cuota.nro_cuota == 1 %}
+                <span class="badge bg-secondary ms-1">anticipo</span>
+              {% endif %}
+            </td>
+            <td>${{ cuota.monto_capital|floatformat:2 }}</td>
+            <td>
+              {% if cuota.monto_interes > 0 %}
+                ${{ cuota.monto_interes|floatformat:2 }}
+              {% else %}
+                <span class="text-white">—</span>
+              {% endif %}
+            </td>
+            <td><strong>${{ cuota.monto_total|floatformat:2 }}</strong></td>
+            <td>{{ cuota.fecha_vencimiento }}</td>
+            <td>
+              {% if cuota.pagado %}
+                <span class="badge bg-success">Pagada</span>
+              {% elif cuota.fecha_vencimiento < today %}
+                <span class="badge bg-danger">Vencida</span>
+              {% else %}
+                <span class="badge bg-secondary">Pendiente</span>
+              {% endif %}
+            </td>
+            <td class="small">{{ cuota.fecha_pago|default:"—" }}</td>
+            <td>
+              {% if not cuota.pagado %}
+              <form method="post" action="{% url 'tasacartel:cuota_marcar_pagada' cuota.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-outline-success">✓Pago</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="table-secondary text-dark">
+          <tr>
+            <td colspan="3" class="text-end"><strong>Total del plan:</strong></td>
+            <td colspan="5">
+              <strong>
+               {{ total_plan}}
+              </strong>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock contenido_panel %}

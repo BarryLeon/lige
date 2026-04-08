@@ -1,0 +1,96 @@
+{% extends "layout_interno.html" %}
+{% load static %}
+
+{% block contenido_panel %}
+<div class="container-fluid px-4" style="max-width: 700px; width: 100%;">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-white mb-0">Nuevo plan de pago</h2>
+    <a href="{% url 'tasacartel:liquidacion_detalle' liquidacion.pk %}" class="btn btn-outline-light btn-sm">
+      ← Volver a la liquidación
+    </a>
+  </div>
+
+  {# Resumen de la deuda base #}
+  <div class="card bg-dark text-white border-warning mb-4">
+    <div class="card-header border-warning text-warning">
+      <h6 class="mb-0">Liquidación #{{ liquidacion.id }} — Deuda actualizada</h6>
+    </div>
+    <div class="card-body">
+      <div class="row text-center">
+        <div class="col-4">
+          <div class="small text-muted">Monto base</div>
+          <div class="fs-5">${{ liquidacion.monto_base_total|floatformat:2 }}</div>
+        </div>
+        <div class="col-4">
+          <div class="small text-muted">Intereses mora</div>
+          <div class="fs-5 text-danger">${{ liquidacion.monto_mora_total|floatformat:2 }}</div>
+        </div>
+        <div class="col-4">
+          <div class="small text-muted">Total deuda actualizada</div>
+          <div class="fs-4 fw-bold text-warning">${{ liquidacion.monto_total|floatformat:2 }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Formulario del plan #}
+  <div class="card bg-dark text-white border-secondary">
+    <div class="card-header border-secondary">
+      <h6 class="mb-0">Configurar plan</h6>
+    </div>
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label class="form-label">Anticipo / Cuota 1 ($)
+            <span class="text-muted small">— no paga interés de financiación</span>
+          </label>
+          {{ form.monto_anticipo }}
+          {% if form.monto_anticipo.errors %}
+            <div class="text-danger small mt-1">{{ form.monto_anticipo.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Cantidad de cuotas (sin contar el anticipo)</label>
+          {{ form.cantidad_cuotas }}
+          {% if form.cantidad_cuotas.errors %}
+            <div class="text-danger small mt-1">{{ form.cantidad_cuotas.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Tasa de financiación mensual (fracción)
+            <span class="text-muted small">— ej: 0.04 para 4% mensual</span>
+          </label>
+          {{ form.tasa_financiacion_mensual }}
+          {% if form.tasa_financiacion_mensual.errors %}
+            <div class="text-danger small mt-1">{{ form.tasa_financiacion_mensual.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label">Observaciones</label>
+          {{ form.observaciones }}
+        </div>
+
+        {# Vista previa del plan (informativa) #}
+        <div class="alert alert-secondary small">
+          <strong>Regla de cálculo:</strong> Saldo = deuda − anticipo.
+          Cada cuota = saldo ÷ N cuotas + (saldo ÷ N) × N° cuota × tasa mensual (interés simple).
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-warning text-dark">Generar plan de pago</button>
+          <a href="{% url 'tasacartel:liquidacion_detalle' liquidacion.pk %}"
+             class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock contenido_panel %}

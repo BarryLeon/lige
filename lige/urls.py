@@ -27,6 +27,7 @@ urlpatterns = [
     path('', include('principal.urls')),
     path('tasas_marchiquita/', include('tasas_marchiquita.urls')),
     path('carteles/', include('carteles.urls')),
+    path('tasacartel/', include('tasacartel.urls', namespace='tasacartel')),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

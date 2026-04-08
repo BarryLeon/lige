@@ -37,7 +37,7 @@ _MODELO_PATH = os.path.join(os.path.dirname(__file__), "carteles_yolo.pt")
 _modelo = None
 
 # Umbral de confianza alto porque el modelo es específico para carteles
-_CONFIANZA_MINIMA_YOLO = 0.50
+_CONFIANZA_MINIMA_YOLO = 0.30
 
 
 def _get_modelo():
@@ -59,7 +59,8 @@ def _get_modelo():
 
 def _leer_exif(ruta_imagen: str) -> dict:
     datos = {"focal_mm": None, "focal_35mm": None, "digital_zoom": None,
-             "ancho_px": None, "alto_px": None}
+             "ancho_px": None, "alto_px": None,
+             "make": "", "model": ""}
     try:
         img = Image.open(ruta_imagen)
         datos["ancho_px"] = img.width
@@ -86,6 +87,10 @@ def _leer_exif(ruta_imagen: str) -> dict:
                     )
                 except Exception:
                     pass
+            elif tag == "Make":
+                datos["make"] = str(valor).strip().lower()
+            elif tag == "Model":
+                datos["model"] = str(valor).strip().lower()
     except Exception:
         pass
     return datos
@@ -93,13 +98,33 @@ def _leer_exif(ruta_imagen: str) -> dict:
 
 # ── FOV ──────────────────────────────────────────────────────────────────────
 
+# Tabla de FOV horizontal real por modelo de celular.
+# Usar cuando el EXIF no trae FocalLengthIn35mmFilm.
+# FOV = 2 * atan(18 / focal_35mm_equiv)
+# Agregar nuevos modelos según se incorporen al relevamiento.
+_FOV_POR_MODELO = {
+    "moto g56 5g": 69.4,   # 26mm equiv → 2*atan(18/26) = 69.4°
+    "moto g56":    69.4,
+}
+
+
 def _calcular_fov_h(exif: dict) -> float:
-    """FOV horizontal en grados. Prioriza FocalLengthIn35mmFilm."""
+    """
+    FOV horizontal en grados.
+    Prioridad:
+      1. FocalLengthIn35mmFilm del EXIF (más preciso)
+      2. FocalLength real + resolución estimada del sensor
+      3. Tabla de FOV por modelo de celular
+      4. Fallback genérico 65°
+    """
+    # 1. FocalLengthIn35mmFilm
     focal_35mm = exif.get("focal_35mm")
     if focal_35mm and focal_35mm > 0:
         fov = 2 * math.degrees(math.atan(18.0 / focal_35mm))
         if 20 < fov < 120:
             return fov
+
+    # 2. FocalLength real + tamaño de sensor estimado
     focal_mm = exif.get("focal_mm")
     ancho_px = exif.get("ancho_px")
     if focal_mm and focal_mm > 0 and ancho_px:
@@ -107,6 +132,14 @@ def _calcular_fov_h(exif: dict) -> float:
         fov = 2 * math.degrees(math.atan(sensor_w / (2 * focal_mm)))
         if 20 < fov < 120:
             return fov
+
+    # 3. Tabla por modelo de celular
+    model = exif.get("model", "").lower()
+    for patron, fov_modelo in _FOV_POR_MODELO.items():
+        if patron in model:
+            return fov_modelo
+
+    # 4. Fallback genérico
     return 65.0
 
 
@@ -322,7 +355,7 @@ def detectar_cartel(ruta_imagen: str, distancia_m: float) -> dict:
     color = (0, 165, 255) if zoom_flag else (0, 220, 0)
     grosor = max(2, int(min(alto_total, ancho_total)*0.002))
     cv2.rectangle(img_out, (x, y), (x + w, y + h), color, grosor)
-    escala = max(0.5, min(2.0, ancho_total) / 1000)
+    escala = max(0.9, min(2.0, ancho_total) / 1000)
     cv2.putText(img_out,
                 f"{ancho_m:.2f}m x {alto_m:.2f}m = {superficie_m2:.2f}m2",
                 (x, max(y - 12, 30)),
