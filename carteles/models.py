@@ -201,6 +201,7 @@ class Cartel(models.Model):
         "auth.User", null=True, blank=True,
         on_delete=models.SET_NULL,
         related_name="carteles_descartados",
+        db_constraint=False,  # Evita error de FK a auth_user si se borra el usuario
     )
     descartado_en = models.DateTimeField(null=True, blank=True)
 

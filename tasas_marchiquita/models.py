@@ -17,7 +17,8 @@ class ArchivoImportacion(models.Model):
     importado_por   = models.ForeignKey(
                           "auth.User", null=True, blank=True,
                           on_delete=models.SET_NULL,
-                          related_name="importaciones")
+                          related_name="importaciones",
+                          db_constraint=False)  # Evita error de FK con auth.User
     total_registros = models.PositiveIntegerField(default=0)
     observaciones   = models.TextField(blank=True)
     procesado       = models.BooleanField(default=False,
@@ -248,7 +249,8 @@ class Liquidacion(models.Model):
     generada_por        = models.ForeignKey(
                               "auth.User", null=True, blank=True,
                               on_delete=models.SET_NULL,
-                              related_name="liquidaciones")
+                              related_name="liquidaciones",
+                              db_constraint=False)  # Evita error de FK con auth.User
 
     class Meta:
         verbose_name        = _("Liquidación")

@@ -92,12 +92,25 @@ WSGI_APPLICATION = 'lige.wsgi.application'
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
-"""
 DATABASES = {
     'default': env.db(),
     }
-
-
+"""
+DATABASES = {
+    # Admin, auth, usuarios, principal, sessions
+    "default": env.db("DATABASE_URL"),
+ 
+    # Cliente Mar Chiquita (app tasas_marchiquita)
+    "marchiquita": env.db("DATABASE_MARCHIQUITA_URL"),
+ 
+    # Cliente Carteles (apps carteles + tasacartel)
+    "carteles": env.db("DATABASE_CARTELES_URL"),
+}
+ 
+# 2. Agregá el router (después de DATABASES):
+ 
+DATABASE_ROUTERS = ["lige.routers.ClientesRouter"]
+ 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 

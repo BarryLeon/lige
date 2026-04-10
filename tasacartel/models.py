@@ -184,6 +184,7 @@ class Liquidacion(models.Model):
         on_delete=models.SET_NULL,
         related_name="liquidaciones_generadas",
         verbose_name="Generado por",
+        db_constraint=False,  # Evita error de clave foránea si se borra el usuario
     )
     fecha_determinacion = models.DateField(
         default=timezone.now,

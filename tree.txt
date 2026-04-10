@@ -1,0 +1,598 @@
+.
+├── AGENTS.md
+├── bootstrap-5.3.8.zip
+├── carteles
+│   ├── admin.py
+│   ├── apps.py
+│   ├── __init__.py
+│   ├── migrations
+│   │   ├── 0001_initial.py
+│   │   ├── 0002_cartel_error_zoom_sospechoso.py
+│   │   ├── 0003_cartel_advertencia_sin_texto_cartel_texto_ocr.py
+│   │   ├── 0004_cartel_descartado_en_cartel_descartado_por_and_more.py
+│   │   ├── 0005_parcela_persona_alter_cartel_advertencia_sin_texto_and_more.py
+│   │   ├── 0006_alter_historialpublicidad_empresa.py
+│   │   ├── __init__.py
+│   │   └── __pycache__
+│   │       ├── 0001_initial.cpython-312.pyc
+│   │       ├── 0002_cartel_error_zoom_sospechoso.cpython-312.pyc
+│   │       ├── 0003_cartel_advertencia_sin_texto_cartel_texto_ocr.cpython-312.pyc
+│   │       ├── 0004_cartel_descartado_en_cartel_descartado_por_and_more.cpython-312.pyc
+│   │       ├── 0005_parcela_persona_alter_cartel_advertencia_sin_texto_and_more.cpython-312.pyc
+│   │       ├── 0006_alter_historialpublicidad_empresa.cpython-312.pyc
+│   │       └── __init__.cpython-312.pyc
+│   ├── models.py
+│   ├── __pycache__
+│   │   ├── admin.cpython-312.pyc
+│   │   ├── apps.cpython-312.pyc
+│   │   ├── __init__.cpython-312.pyc
+│   │   ├── models.cpython-312.pyc
+│   │   ├── urls.cpython-312.pyc
+│   │   └── views.cpython-312.pyc
+│   ├── servicios
+│   │   ├── cartel_detector.py
+│   │   ├── carteles_yolo.pt
+│   │   ├── exportar.py
+│   │   ├── importar_kobo.py
+│   │   ├── kobo_delete.py
+│   │   ├── modelos_yolo
+│   │   │   ├── carteles_v2_billboard_mas_traffic
+│   │   │   │   ├── args.yaml
+│   │   │   │   ├── BoxF1_curve.png
+│   │   │   │   ├── BoxP_curve.png
+│   │   │   │   ├── BoxPR_curve.png
+│   │   │   │   ├── BoxR_curve.png
+│   │   │   │   ├── confusion_matrix_normalized.png
+│   │   │   │   ├── confusion_matrix.png
+│   │   │   │   ├── labels.jpg
+│   │   │   │   ├── results.csv
+│   │   │   │   ├── results.png
+│   │   │   │   ├── train_batch0.jpg
+│   │   │   │   ├── train_batch1.jpg
+│   │   │   │   ├── train_batch2.jpg
+│   │   │   │   ├── train_batch61290.jpg
+│   │   │   │   ├── train_batch61291.jpg
+│   │   │   │   ├── train_batch61292.jpg
+│   │   │   │   ├── val_batch0_labels.jpg
+│   │   │   │   ├── val_batch0_pred.jpg
+│   │   │   │   ├── val_batch1_labels.jpg
+│   │   │   │   ├── val_batch1_pred.jpg
+│   │   │   │   ├── val_batch2_labels.jpg
+│   │   │   │   ├── val_batch2_pred.jpg
+│   │   │   │   └── weights
+│   │   │   │       ├── best.pt
+│   │   │   │       └── last.pt
+│   │   │   ├── carteles_yolo_billboard.pt
+│   │   │   └── resultados_modelos.txt
+│   │   ├── ocr_cartel.py
+│   │   ├── __pycache__
+│   │   │   ├── cartel_detector.cpython-312.pyc
+│   │   │   ├── exportar.cpython-312.pyc
+│   │   │   ├── importar_kobo.cpython-312.pyc
+│   │   │   ├── kobo_delete.cpython-312.pyc
+│   │   │   └── ocr_cartel.cpython-312.pyc
+│   │   └── yolov8n.pt
+│   ├── tests.py
+│   ├── urls.py
+│   └── views.py
+├── db.sqlite3
+├── lige
+│   ├── asgi.py
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   ├── __init__.cpython-312.pyc
+│   │   ├── settings.cpython-312.pyc
+│   │   ├── urls.cpython-312.pyc
+│   │   └── wsgi.cpython-312.pyc
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+├── manage.py
+├── media
+│   └── carteles
+│       ├── anotadas
+│       │   ├── anotada_697395435.jpg
+│       │   ├── anotada_697409865_2gZ1opH.jpg
+│       │   ├── anotada_697409865_7gPUyeS.jpg
+│       │   ├── anotada_697409865_f1pDqOy.jpg
+│       │   ├── anotada_697409865_iXkoAKY.jpg
+│       │   ├── anotada_697409865.jpg
+│       │   ├── anotada_697409865_jrc4oQn.jpg
+│       │   ├── anotada_697432177.jpg
+│       │   ├── anotada_697432177_M0nYF6z.jpg
+│       │   ├── anotada_697432177_z7aEAWe.jpg
+│       │   ├── anotada_697438065.jpg
+│       │   ├── anotada_697441343_8jiHvud.jpg
+│       │   ├── anotada_697441343_8owyptu.jpg
+│       │   ├── anotada_697441343_DNwt3Gu.jpg
+│       │   ├── anotada_697441343_FJhY78W.jpg
+│       │   ├── anotada_697441343.jpg
+│       │   ├── anotada_697441343_k0yCZA6.jpg
+│       │   ├── anotada_697441343_sAkUWNF.jpg
+│       │   ├── anotada_697441343_widrzUH.jpg
+│       │   ├── anotada_697441343_XzPhTZx.jpg
+│       │   ├── anotada_699258768_6NH7W7Z.jpg
+│       │   ├── anotada_699258768_dJ0SiFZ.jpg
+│       │   ├── anotada_699258768.jpg
+│       │   ├── anotada_699258768_ndsBMtf.jpg
+│       │   ├── anotada_699258768_OqgYpCT.jpg
+│       │   ├── anotada_699258768_W1CT7s4.jpg
+│       │   ├── anotada_702590535_2hk7x72.jpg
+│       │   ├── anotada_702590535_DPIoFxE.jpg
+│       │   ├── anotada_702590535_iJtZ1go.jpg
+│       │   ├── anotada_702590535_JMIFvl4.jpg
+│       │   ├── anotada_702590535.jpg
+│       │   ├── anotada_702590535_RMUWh8F.jpg
+│       │   ├── anotada_702590535_W6uruxM.jpg
+│       │   ├── anotada_705536544.jpg
+│       │   ├── anotada_705539678_83A86c2.jpg
+│       │   ├── anotada_705539678_d76NrSi.jpg
+│       │   ├── anotada_705539678.jpg
+│       │   ├── anotada_705539678_LkP5KqK.jpg
+│       │   ├── anotada_705539678_RwsP3tG.jpg
+│       │   ├── anotada_705539678_zRMniZX.jpg
+│       │   ├── anotada_705547301.jpg
+│       │   ├── anotada_705553648.jpg
+│       │   ├── anotada_708949522.jpg
+│       │   ├── anotada_709402123.jpg
+│       │   └── anotada_709402123_MUOAdnq.jpg
+│       └── fotos
+│           ├── cartel_697395435.jpg
+│           ├── cartel_697409865.jpg
+│           ├── cartel_697432177.jpg
+│           ├── cartel_697438065.jpg
+│           ├── cartel_697441343.jpg
+│           ├── cartel_699258768.jpg
+│           ├── cartel_702590535.jpg
+│           ├── cartel_705536544.jpg
+│           ├── cartel_705539678.jpg
+│           ├── cartel_705547301.jpg
+│           ├── cartel_705553648.jpg
+│           ├── cartel_7089495222.jpg
+│           ├── cartel_708949522.jpg
+│           ├── cartel_709402123.jpg
+│           └── cartel_prueba_ruta.jpg
+├── principal
+│   ├── admin.py
+│   ├── apps.py
+│   ├── __init__.py
+│   ├── middleware.py
+│   ├── __pycache__
+│   │   ├── admin.cpython-312.pyc
+│   │   ├── apps.cpython-312.pyc
+│   │   ├── __init__.cpython-312.pyc
+│   │   ├── middleware.cpython-312.pyc
+│   │   ├── models.cpython-312.pyc
+│   │   ├── services.cpython-312.pyc
+│   │   ├── urls.cpython-312.pyc
+│   │   └── views.cpython-312.pyc
+│   ├── tests.py
+│   ├── urls.py
+│   └── views.py
+├── requirements.txt
+├── ruta03.jpg
+├── static
+├── static_dev
+│   ├── css
+│   │   ├── bootstrap
+│   │   │   ├── bootstrap.css
+│   │   │   ├── bootstrap-grid.css
+│   │   │   ├── bootstrap-reboot.css
+│   │   │   └── bootstrap-utilities.css
+│   │   ├── bootstrap.css
+│   │   ├── bootstrap.css.map
+│   │   ├── bootstrap-grid.css
+│   │   ├── bootstrap-grid.css.map
+│   │   ├── bootstrap-grid.min.css
+│   │   ├── bootstrap-grid.min.css.map
+│   │   ├── bootstrap-grid.rtl.css
+│   │   ├── bootstrap-grid.rtl.css.map
+│   │   ├── bootstrap-grid.rtl.min.css
+│   │   ├── bootstrap-grid.rtl.min.css.map
+│   │   ├── bootstrap.min.css
+│   │   ├── bootstrap.min.css.map
+│   │   ├── bootstrap-reboot.css
+│   │   ├── bootstrap-reboot.css.map
+│   │   ├── bootstrap-reboot.min.css
+│   │   ├── bootstrap-reboot.min.css.map
+│   │   ├── bootstrap-reboot.rtl.css
+│   │   ├── bootstrap-reboot.rtl.css.map
+│   │   ├── bootstrap-reboot.rtl.min.css
+│   │   ├── bootstrap-reboot.rtl.min.css.map
+│   │   ├── bootstrap.rtl.css
+│   │   ├── bootstrap.rtl.css.map
+│   │   ├── bootstrap.rtl.min.css
+│   │   ├── bootstrap.rtl.min.css.map
+│   │   ├── bootstrap-utilities.css
+│   │   ├── bootstrap-utilities.css.map
+│   │   ├── bootstrap-utilities.min.css
+│   │   ├── bootstrap-utilities.min.css.map
+│   │   ├── bootstrap-utilities.rtl.css
+│   │   ├── bootstrap-utilities.rtl.css.map
+│   │   ├── bootstrap-utilities.rtl.min.css
+│   │   ├── bootstrap-utilities.rtl.min.css.map
+│   │   └── main.css
+│   ├── img
+│   │   └── logo.png
+│   ├── js
+│   │   ├── bootstrap.bundle.js
+│   │   ├── bootstrap.bundle.js.map
+│   │   ├── bootstrap.bundle.min.js
+│   │   ├── bootstrap.bundle.min.js.map
+│   │   ├── bootstrap.esm.js
+│   │   ├── bootstrap.esm.js.map
+│   │   ├── bootstrap.esm.min.js
+│   │   ├── bootstrap.esm.min.js.map
+│   │   ├── bootstrap.js
+│   │   ├── bootstrap.js.map
+│   │   ├── bootstrap.min.js
+│   │   ├── bootstrap.min.js.map
+│   │   ├── dist
+│   │   │   ├── alert.js
+│   │   │   ├── alert.js.map
+│   │   │   ├── base-component.js
+│   │   │   ├── base-component.js.map
+│   │   │   ├── button.js
+│   │   │   ├── button.js.map
+│   │   │   ├── carousel.js
+│   │   │   ├── carousel.js.map
+│   │   │   ├── collapse.js
+│   │   │   ├── collapse.js.map
+│   │   │   ├── dom
+│   │   │   │   ├── data.js
+│   │   │   │   ├── data.js.map
+│   │   │   │   ├── event-handler.js
+│   │   │   │   ├── event-handler.js.map
+│   │   │   │   ├── manipulator.js
+│   │   │   │   ├── manipulator.js.map
+│   │   │   │   ├── selector-engine.js
+│   │   │   │   └── selector-engine.js.map
+│   │   │   ├── dropdown.js
+│   │   │   ├── dropdown.js.map
+│   │   │   ├── modal.js
+│   │   │   ├── modal.js.map
+│   │   │   ├── offcanvas.js
+│   │   │   ├── offcanvas.js.map
+│   │   │   ├── popover.js
+│   │   │   ├── popover.js.map
+│   │   │   ├── scrollspy.js
+│   │   │   ├── scrollspy.js.map
+│   │   │   ├── tab.js
+│   │   │   ├── tab.js.map
+│   │   │   ├── toast.js
+│   │   │   ├── toast.js.map
+│   │   │   ├── tooltip.js
+│   │   │   ├── tooltip.js.map
+│   │   │   └── util
+│   │   │       ├── backdrop.js
+│   │   │       ├── backdrop.js.map
+│   │   │       ├── component-functions.js
+│   │   │       ├── component-functions.js.map
+│   │   │       ├── config.js
+│   │   │       ├── config.js.map
+│   │   │       ├── focustrap.js
+│   │   │       ├── focustrap.js.map
+│   │   │       ├── index.js
+│   │   │       ├── index.js.map
+│   │   │       ├── sanitizer.js
+│   │   │       ├── sanitizer.js.map
+│   │   │       ├── scrollbar.js
+│   │   │       ├── scrollbar.js.map
+│   │   │       ├── swipe.js
+│   │   │       ├── swipe.js.map
+│   │   │       ├── template-factory.js
+│   │   │       └── template-factory.js.map
+│   │   ├── index.esm.js
+│   │   ├── index.umd.js
+│   │   ├── src
+│   │   │   ├── alert.js
+│   │   │   ├── base-component.js
+│   │   │   ├── button.js
+│   │   │   ├── carousel.js
+│   │   │   ├── collapse.js
+│   │   │   ├── dom
+│   │   │   │   ├── data.js
+│   │   │   │   ├── event-handler.js
+│   │   │   │   ├── manipulator.js
+│   │   │   │   └── selector-engine.js
+│   │   │   ├── dropdown.js
+│   │   │   ├── modal.js
+│   │   │   ├── offcanvas.js
+│   │   │   ├── popover.js
+│   │   │   ├── scrollspy.js
+│   │   │   ├── tab.js
+│   │   │   ├── toast.js
+│   │   │   ├── tooltip.js
+│   │   │   └── util
+│   │   │       ├── backdrop.js
+│   │   │       ├── component-functions.js
+│   │   │       ├── config.js
+│   │   │       ├── focustrap.js
+│   │   │       ├── index.js
+│   │   │       ├── sanitizer.js
+│   │   │       ├── scrollbar.js
+│   │   │       ├── swipe.js
+│   │   │       └── template-factory.js
+│   │   └── tests
+│   │       ├── browsers.js
+│   │       ├── helpers
+│   │       │   └── fixture.js
+│   │       ├── integration
+│   │       │   ├── bundle.js
+│   │       │   ├── bundle-modularity.js
+│   │       │   ├── index.html
+│   │       │   ├── rollup.bundle.js
+│   │       │   └── rollup.bundle-modularity.js
+│   │       ├── karma.conf.js
+│   │       ├── README.md
+│   │       ├── unit
+│   │       │   ├── alert.spec.js
+│   │       │   ├── base-component.spec.js
+│   │       │   ├── button.spec.js
+│   │       │   ├── carousel.spec.js
+│   │       │   ├── collapse.spec.js
+│   │       │   ├── dom
+│   │       │   │   ├── data.spec.js
+│   │       │   │   ├── event-handler.spec.js
+│   │       │   │   ├── manipulator.spec.js
+│   │       │   │   └── selector-engine.spec.js
+│   │       │   ├── dropdown.spec.js
+│   │       │   ├── jquery.spec.js
+│   │       │   ├── modal.spec.js
+│   │       │   ├── offcanvas.spec.js
+│   │       │   ├── popover.spec.js
+│   │       │   ├── scrollspy.spec.js
+│   │       │   ├── tab.spec.js
+│   │       │   ├── toast.spec.js
+│   │       │   ├── tooltip.spec.js
+│   │       │   └── util
+│   │       │       ├── backdrop.spec.js
+│   │       │       ├── component-functions.spec.js
+│   │       │       ├── config.spec.js
+│   │       │       ├── focustrap.spec.js
+│   │       │       ├── index.spec.js
+│   │       │       ├── sanitizer.spec.js
+│   │       │       ├── scrollbar.spec.js
+│   │       │       ├── swipe.spec.js
+│   │       │       └── template-factory.spec.js
+│   │       └── visual
+│   │           ├── alert.html
+│   │           ├── button.html
+│   │           ├── carousel.html
+│   │           ├── collapse.html
+│   │           ├── dropdown.html
+│   │           ├── floating-label.html
+│   │           ├── input.html
+│   │           ├── modal.html
+│   │           ├── popover.html
+│   │           ├── scrollspy.html
+│   │           ├── tab.html
+│   │           ├── toast.html
+│   │           └── tooltip.html
+│   └── scss
+│       ├── bootstrap
+│       │   ├── _accordion.scss
+│       │   ├── _alert.scss
+│       │   ├── _badge.scss
+│       │   ├── bootstrap-grid.scss
+│       │   ├── bootstrap-reboot.scss
+│       │   ├── bootstrap.scss
+│       │   ├── bootstrap-utilities.scss
+│       │   ├── _breadcrumb.scss
+│       │   ├── _button-group.scss
+│       │   ├── _buttons.scss
+│       │   ├── _card.scss
+│       │   ├── _carousel.scss
+│       │   ├── _close.scss
+│       │   ├── _containers.scss
+│       │   ├── _dropdown.scss
+│       │   ├── forms
+│       │   │   ├── _floating-labels.scss
+│       │   │   ├── _form-check.scss
+│       │   │   ├── _form-control.scss
+│       │   │   ├── _form-range.scss
+│       │   │   ├── _form-select.scss
+│       │   │   ├── _form-text.scss
+│       │   │   ├── _input-group.scss
+│       │   │   ├── _labels.scss
+│       │   │   └── _validation.scss
+│       │   ├── _forms.scss
+│       │   ├── _functions.scss
+│       │   ├── _grid.scss
+│       │   ├── helpers
+│       │   │   ├── _clearfix.scss
+│       │   │   ├── _color-bg.scss
+│       │   │   ├── _colored-links.scss
+│       │   │   ├── _focus-ring.scss
+│       │   │   ├── _icon-link.scss
+│       │   │   ├── _position.scss
+│       │   │   ├── _ratio.scss
+│       │   │   ├── _stacks.scss
+│       │   │   ├── _stretched-link.scss
+│       │   │   ├── _text-truncation.scss
+│       │   │   ├── _visually-hidden.scss
+│       │   │   └── _vr.scss
+│       │   ├── _helpers.scss
+│       │   ├── _images.scss
+│       │   ├── _list-group.scss
+│       │   ├── _maps.scss
+│       │   ├── mixins
+│       │   │   ├── _alert.scss
+│       │   │   ├── _backdrop.scss
+│       │   │   ├── _banner.scss
+│       │   │   ├── _border-radius.scss
+│       │   │   ├── _box-shadow.scss
+│       │   │   ├── _breakpoints.scss
+│       │   │   ├── _buttons.scss
+│       │   │   ├── _caret.scss
+│       │   │   ├── _clearfix.scss
+│       │   │   ├── _color-mode.scss
+│       │   │   ├── _color-scheme.scss
+│       │   │   ├── _container.scss
+│       │   │   ├── _deprecate.scss
+│       │   │   ├── _forms.scss
+│       │   │   ├── _gradients.scss
+│       │   │   ├── _grid.scss
+│       │   │   ├── _image.scss
+│       │   │   ├── _list-group.scss
+│       │   │   ├── _lists.scss
+│       │   │   ├── _pagination.scss
+│       │   │   ├── _reset-text.scss
+│       │   │   ├── _resize.scss
+│       │   │   ├── _table-variants.scss
+│       │   │   ├── _text-truncate.scss
+│       │   │   ├── _transition.scss
+│       │   │   ├── _utilities.scss
+│       │   │   └── _visually-hidden.scss
+│       │   ├── _mixins.scss
+│       │   ├── _modal.scss
+│       │   ├── _navbar.scss
+│       │   ├── _nav.scss
+│       │   ├── _offcanvas.scss
+│       │   ├── _pagination.scss
+│       │   ├── _placeholders.scss
+│       │   ├── _popover.scss
+│       │   ├── _progress.scss
+│       │   ├── _reboot.scss
+│       │   ├── _root.scss
+│       │   ├── _spinners.scss
+│       │   ├── _tables.scss
+│       │   ├── tests
+│       │   │   ├── jasmine.js
+│       │   │   ├── mixins
+│       │   │   │   ├── _auto-import-of-variables-dark.test.scss
+│       │   │   │   ├── _box-shadow.test.scss
+│       │   │   │   ├── _color-contrast.test.scss
+│       │   │   │   ├── _color-modes.test.scss
+│       │   │   │   ├── _media-query-color-mode-full.test.scss
+│       │   │   │   └── _utilities.test.scss
+│       │   │   ├── sass-true
+│       │   │   │   ├── register.js
+│       │   │   │   └── runner.js
+│       │   │   └── utilities
+│       │   │       └── _api.test.scss
+│       │   ├── _toasts.scss
+│       │   ├── _tooltip.scss
+│       │   ├── _transitions.scss
+│       │   ├── _type.scss
+│       │   ├── utilities
+│       │   │   └── _api.scss
+│       │   ├── _utilities.scss
+│       │   ├── _variables-dark.scss
+│       │   ├── _variables.scss
+│       │   └── vendor
+│       │       └── _rfs.scss
+│       ├── _cerrar_carrito.scss
+│       ├── _colores.scss
+│       ├── _login.scss
+│       ├── main.scss
+│       ├── _media_queries.scss
+│       ├── _navbar.scss
+│       ├── _perfil_panel.scss
+│       └── _secciones.scss
+├── tasacartel
+│   ├── admin.py
+│   ├── apps.py
+│   ├── forms.py
+│   ├── __init__.py
+│   ├── migrations
+│   │   ├── 0001_initial.py
+│   │   ├── __init__.py
+│   │   └── __pycache__
+│   │       ├── 0001_initial.cpython-312.pyc
+│   │       └── __init__.cpython-312.pyc
+│   ├── models.py
+│   ├── __pycache__
+│   │   ├── admin.cpython-312.pyc
+│   │   ├── apps.cpython-312.pyc
+│   │   ├── forms.cpython-312.pyc
+│   │   ├── __init__.cpython-312.pyc
+│   │   ├── models.cpython-312.pyc
+│   │   ├── signals.cpython-312.pyc
+│   │   ├── urls.cpython-312.pyc
+│   │   └── views.cpython-312.pyc
+│   ├── signals.py
+│   ├── tests.py
+│   ├── urls.py
+│   └── views.py
+├── tasas_marchiquita
+│   ├── admin.py
+│   ├── apps.py
+│   ├── __init__.py
+│   ├── migrations
+│   │   ├── 0001_initial.py
+│   │   ├── __init__.py
+│   │   └── __pycache__
+│   │       ├── 0001_initial.cpython-312.pyc
+│   │       └── __init__.cpython-312.pyc
+│   ├── models.py
+│   ├── __pycache__
+│   │   ├── admin.cpython-312.pyc
+│   │   ├── apps.cpython-312.pyc
+│   │   ├── __init__.cpython-312.pyc
+│   │   ├── models.cpython-312.pyc
+│   │   ├── services.cpython-312.pyc
+│   │   ├── urls.cpython-312.pyc
+│   │   └── views.cpython-312.pyc
+│   ├── services.py
+│   ├── tests.py
+│   ├── urls.py
+│   └── views.py
+├── templates
+│   ├── base.html
+│   ├── carteles
+│   │   ├── detalle.html
+│   │   ├── informes.html
+│   │   ├── lista.html
+│   │   ├── parcelas
+│   │   │   ├── form.html
+│   │   │   └── lista.html
+│   │   └── personas
+│   │       ├── form.html
+│   │       └── lista.html
+│   ├── layout_interno.html
+│   ├── layout_login.html
+│   ├── principal
+│   │   ├── consultas.html
+│   │   ├── home.html
+│   │   ├── panel.html
+│   │   └── resultado.html
+│   ├── tasacartel
+│   │   ├── historial_contribuyente.html
+│   │   ├── liquidacion_detalle.html
+│   │   ├── liquidaciones_lista.html
+│   │   ├── liquidacion_form.html
+│   │   ├── plan_detalle.html
+│   │   ├── plan_form.html
+│   │   ├── valores_tasa_lista.html
+│   │   └── valor_tasa_form.html
+│   └── usuarios
+│       └── login.html
+├── tree.txt
+└── usuarios
+    ├── admin.py
+    ├── apps.py
+    ├── forms.py
+    ├── __init__.py
+    ├── migrations
+    │   ├── 0001_initial.py
+    │   ├── 0002_alter_perfilusuario_options.py
+    │   ├── __init__.py
+    │   └── __pycache__
+    │       ├── 0001_initial.cpython-312.pyc
+    │       ├── 0002_alter_perfilusuario_options.cpython-312.pyc
+    │       └── __init__.cpython-312.pyc
+    ├── models.py
+    ├── __pycache__
+    │   ├── admin.cpython-312.pyc
+    │   ├── apps.cpython-312.pyc
+    │   ├── forms.cpython-312.pyc
+    │   ├── __init__.cpython-312.pyc
+    │   ├── models.cpython-312.pyc
+    │   ├── urls.cpython-312.pyc
+    │   └── views.cpython-312.pyc
+    ├── tests.py
+    ├── urls.py
+    └── views.py
+
+67 directories, 529 files
