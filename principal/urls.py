@@ -4,5 +4,5 @@ from .views import (
     )
 
 urlpatterns = [
-    path('panel/',                              panel_view,                  name='panel'),
+    path('panel/',panel_view, name='panel'),
    ]

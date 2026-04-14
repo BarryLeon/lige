@@ -217,7 +217,26 @@
             </table>
 
             {% if resultado_parcela.tiene_plan %}
-              <p class="text-white-50 mb-1">Plan de cuotas: {{ resultado_parcela.cantidad_cuotas }} cuotas — Anticipo: $ {{ resultado_parcela.anticipo_total|floatformat:2 }}</p>
+              <table class="table table-dark table-sm mb-3">
+                <thead>
+                  <tr>
+                    <th>Deuda original</th>
+                    <th>Deuda actualizada</th>
+                    <th>Intereses</th>
+                    <th>Cuotas</th>
+                    <th>Valor cuota</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>$ {{ resultado_parcela.deuda_original_plan|floatformat:2 }}</td>
+                    <td>$ {{ resultado_parcela.deuda_actualizada|floatformat:2 }}</td>
+                    <td>$ {{ resultado_parcela.intereses_plan|floatformat:2 }}</td>
+                    <td>{{ resultado_parcela.cantidad_cuotas }}</td>
+                    <td>$ {{ resultado_parcela.valor_cuota|floatformat:2 }}</td>
+                  </tr>
+                </tbody>
+              </table>
               <table class="table table-dark table-sm table-hover">
                 <thead><tr><th>Nro. cuota</th><th>Monto pagado</th><th>Estado</th></tr></thead>
                 <tbody>
@@ -309,6 +328,7 @@
 
   <div class="mt-2">
     <a href="{% url 'home' %}" class="btn btn-outline-light">← Volver al dashboard</a>
+    <a href="{% url 'estadisticas' %}" class="btn btn-outline-info">Estadísticas →</a>
   </div>
 
 </div>

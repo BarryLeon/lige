@@ -8,6 +8,7 @@ from .views import (
     generar_liquidacion_view,
     descargar_liquidacion_view,
     consultas_view,
+    estadisticas_view,
 )
 
 urlpatterns = [
@@ -19,4 +20,5 @@ urlpatterns = [
     path('liquidar/<int:archivo_id>/',          generar_liquidacion_view,    name='generar_liquidacion'),
     path('descargar/<int:liquidacion_id>/',     descargar_liquidacion_view,  name='descargar_liquidacion'),
     path('consultas/',                          consultas_view,              name='consultas'),
+    path('estadisticas/',                       estadisticas_view,           name='estadisticas'),
 ]

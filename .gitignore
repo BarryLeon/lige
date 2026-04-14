@@ -20,3 +20,10 @@ __pycache__/
 
 # archivos de redes neuronales
 carteles/servicios/carteles_yolo.pt
+
+
+# Media files
+media/
+
+
+

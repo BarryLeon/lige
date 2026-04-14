@@ -1,0 +1,166 @@
+{% extends "layout_interno.html" %}
+{% load static %}
+
+{% block contenido_panel %}
+<div class="container-fluid px-4 py-4" style="color: white; width: 100%;">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="color: cadetblue;">Estadísticas del padrón</h2>
+    <a href="{% url 'consultas' %}" class="btn btn-outline-light btn-sm">← Volver a consultas</a>
+  </div>
+
+  <!-- ── Fila 1: cards de modalidad de pago ── -->
+  <div class="row mb-4 g-3 text-center">
+    <div class="col-md-3">
+      <div class="card text-white h-100" style="background-color: #27ae60;">
+        <div class="card-body">
+          <h6>Pagaron contado</h6>
+          <h2>{{ stats.contado_cantidad }}</h2>
+          <p class="mb-0 small">$ {{ stats.contado_monto|floatformat:2 }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white h-100" style="background-color: #2980b9;">
+        <div class="card-body">
+          <h6>En plan de cuotas</h6>
+          <h2>{{ stats.plan_cantidad }}</h2>
+          <p class="mb-0 small">$ {{ stats.plan_monto|floatformat:2 }} cobrado</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white h-100" style="background-color: #8e44ad;">
+        <div class="card-body">
+          <h6>Pagadores regulares</h6>
+          <h2>{{ stats.regulares_cantidad }}</h2>
+          <p class="mb-0 small">Al día con su plan</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white h-100" style="background-color: #e67e22;">
+        <div class="card-body">
+          <h6>Pagadores irregulares</h6>
+          <h2>{{ stats.irregulares_cantidad }}</h2>
+          <p class="mb-0 small">Con períodos sin pagar</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Fila 2: alerta 3+ sin pagar ── -->
+  <div class="row mb-4 g-3">
+    <div class="col-md-4">
+      <div class="card text-white h-100" style="background-color: #ae2732;">
+        <div class="card-body text-center">
+          <h6>Con 3 o más períodos sin pagar</h6>
+          <h2>{{ stats.sin_pagar_3_cantidad }}</h2>
+          <p class="mb-0 small">Requieren atención</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Gráfico torta modalidad ── -->
+    <div class="col-md-4">
+      <div class="card h-100" style="background-color: #1a3a4a; border: 1px solid #2c5364;">
+        <div class="card-body">
+          <h6 style="color: cadetblue;" class="text-center mb-3">Modalidad de pago</h6>
+          <canvas id="graficoModalidad" height="180"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Gráfico torta regularidad ── -->
+    <div class="col-md-4">
+      <div class="card h-100" style="background-color: #1a3a4a; border: 1px solid #2c5364;">
+        <div class="card-body">
+          <h6 style="color: cadetblue;" class="text-center mb-3">Regularidad en plan</h6>
+          <canvas id="graficoRegularidad" height="180"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tabla irregulares ── -->
+  {% if stats.irregulares_detalle %}
+  <div class="card mb-4" style="background-color: #1a3a4a; border: 1px solid #2c5364;">
+    <div class="card-body">
+      <h5 style="color: cadetblue;" class="mb-3">Detalle de pagadores irregulares</h5>
+      <table class="table table-dark table-sm table-hover">
+        <thead>
+          <tr>
+            <th>Responsable</th>
+            <th class="text-center">Cuotas pagadas</th>
+            <th class="text-center">Períodos sin pagar</th>
+            <th class="text-center">Alerta</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in stats.irregulares_detalle %}
+          <tr>
+            <td>{{ item.responsable }}</td>
+            <td class="text-center">{{ item.cuotas_pagadas }}</td>
+            <td class="text-center">{{ item.periodos_sin_pagar }}</td>
+            <td class="text-center">
+              {% if item.periodos_sin_pagar >= 3 %}
+                <span class="badge bg-danger">⚠ {{ item.periodos_sin_pagar }} meses</span>
+              {% else %}
+                <span class="badge bg-warning text-dark">{{ item.periodos_sin_pagar }} mes{{ item.periodos_sin_pagar|pluralize:",es" }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+  const COLORS = ['#27ae60', '#2980b9', '#7f8c8d'];
+  const COLORS2 = ['#8e44ad', '#e67e22'];
+
+  // Gráfico modalidad
+  new Chart(document.getElementById('graficoModalidad'), {
+    type: 'doughnut',
+    data: {
+      labels: {{ stats.grafico_modalidad.labels|safe }},
+      datasets: [{
+        data: {{ stats.grafico_modalidad.data|safe }},
+        backgroundColor: COLORS,
+        borderColor: '#0f2027',
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { labels: { color: 'white', font: { size: 12 } } }
+      }
+    }
+  });
+
+  // Gráfico regularidad
+  new Chart(document.getElementById('graficoRegularidad'), {
+    type: 'doughnut',
+    data: {
+      labels: {{ stats.grafico_regularidad.labels|safe }},
+      datasets: [{
+        data: {{ stats.grafico_regularidad.data|safe }},
+        backgroundColor: COLORS2,
+        borderColor: '#0f2027',
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { labels: { color: 'white', font: { size: 12 } } }
+      }
+    }
+  });
+</script>
+{% endblock contenido_panel %}

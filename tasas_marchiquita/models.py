@@ -153,6 +153,12 @@ class Deuda(models.Model):
                               null=True, blank=True,
                               verbose_name="CANTIDAD DE CUOTAS")
 
+    # -- Deuda original sin intereses (se copia del archivo inicial al suscribir plan) --
+    deuda_original      = models.DecimalField(max_digits=14, decimal_places=2,
+                                               null=True, blank=True,
+                                               help_text="Deuda original sin intereses. "
+                                                         "Se llena cuando valor_total_deuda incluye intereses.")
+
     # -- Estado calculado --
     estado              = models.CharField(max_length=10, choices=Estado.choices,
                                            default=Estado.VIGENTE)
@@ -169,8 +175,25 @@ class Deuda(models.Model):
         return f"{self.parcela} | {self.importacion.periodo.strftime('%B %Y')} | {self.estado}"
 
     @property
+    def intereses(self):
+        """Intereses del plan = valor_total_deuda - deuda_original (0 si no hay plan)."""
+        if self.deuda_original:
+            return self.valor_total_deuda - self.deuda_original
+        return 0
+
+    @property
+    def valor_cuota(self):
+        """Valor de cada cuota = valor_total_deuda / cantidad_cuotas."""
+        if self.tiene_plan_cuotas and self.cantidad_cuotas:
+            return (self.valor_total_deuda / self.cantidad_cuotas).quantize(
+                __import__('decimal').Decimal('0.01')
+            )
+        return None
+
+    @property
     def saldo_pendiente(self):
-        return self.valor_total_deuda - (self.pago_total_deuda or 0) - (self.anticipo or 0) - sum(c.monto_pagado for c in self.cuotas.all())
+        base = self.deuda_original if self.deuda_original else self.valor_total_deuda
+        return base - (self.pago_total_deuda or 0) - (self.anticipo or 0) - sum(c.monto_pagado for c in self.cuotas.all())
 
     @property
     def esta_cancelada(self):

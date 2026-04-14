@@ -6,7 +6,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 
 from django.http import HttpResponse
 from .models import ArchivoImportacion, Liquidacion
-from .services import guardar_archivo, procesar_archivo, eliminar_archivo, revertir_procesamiento, consulta_por_deudor, consulta_por_parcela, totales_generales, generar_liquidacion, descargar_pdf_liquidacion, totales_liquidaciones
+from .services import guardar_archivo, procesar_archivo, eliminar_archivo, revertir_procesamiento, consulta_por_deudor, consulta_por_parcela, totales_generales, generar_liquidacion, descargar_pdf_liquidacion, totales_liquidaciones, estadisticas
 
 
 
@@ -23,7 +23,7 @@ def home_view(request):
     procesados   = archivos.filter(procesado=True).count()
     revertidos   = archivos.filter(revertido=True).count()
 
-    return render(request, 'principal/home.html', {
+    return render(request, 'tasas_marchiquita/home.html', {
         "archivos":     archivos,
         "sin_procesar": sin_procesar,
         "procesados":   procesados,
@@ -94,7 +94,7 @@ def procesar_archivo_view(request, archivo_id):
 
     try:
         resumen = procesar_archivo(archivo_id)
-        return render(request, 'principal/resultado.html', {
+        return render(request, 'tasas_marchiquita/resultado.html', {
             "resumen": resumen,
             "archivo": get_object_or_404(ArchivoImportacion, pk=archivo_id),
         })
@@ -124,7 +124,7 @@ def consultas_view(request):
         ctx["resultado_parcela"] = consulta_por_parcela(request.GET["parcela"].strip())
         ctx["busqueda_parcela"]  = request.GET["parcela"].strip()
 
-    return render(request, 'principal/consultas.html', ctx)
+    return render(request, 'tasas_marchiquita/consultas.html', ctx)
 
 @login_required(login_url='login')
 def eliminar_archivo_view(request, archivo_id):
@@ -211,3 +211,12 @@ def descargar_liquidacion_view(request, liquidacion_id):
     except Exception as e:
         messages.error(request, f"Error inesperado al descargar: {str(e)}")
         return redirect("home")
+
+@login_required(login_url='login')
+def estadisticas_view(request):
+    """
+    Vista de estadísticas generales del padrón.
+    """
+    return render(request, 'tasas_marchiquita/estadisticas.html', {
+        "stats": estadisticas(),
+    })

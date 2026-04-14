@@ -20,8 +20,13 @@ class ClientesRouter:
         return self._get_db(model._meta.app_label)
 
     def allow_relation(self, obj1, obj2, **hints):
-        # Solo permite relaciones entre modelos de la misma base
-        return self._get_db(obj1._meta.app_label) == self._get_db(obj2._meta.app_label)
+        db_obj1 = self._get_db(obj1._meta.app_label)
+        db_obj2 = self._get_db(obj2._meta.app_label)
+        if db_obj1 == db_obj2:
+            return True
+        if "default" in (db_obj1, db_obj2):
+            return True
+        return False
 
     def allow_migrate(self, db, app_label, model_name=None, **hints):
         return db == self._get_db(app_label)

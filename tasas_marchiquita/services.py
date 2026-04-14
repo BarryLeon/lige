@@ -344,7 +344,7 @@ def _validar_fila(fila, col, hay_deuda_inicial: bool, vistos_en_archivo: set) ->
                     f"no coincide con el registrado '{parcela.responsable.resp_pago}'."
                 )
 
-            # Verificar que VALOR_TOTAL_DEUDA coincida con la deuda inicial
+            # Verificar que VALOR_TOTAL_DEUDA sea >= a la deuda inicial
             if valor_total is not None:
                 deuda_inicial = (
                     Deuda.objects
@@ -352,12 +352,15 @@ def _validar_fila(fila, col, hay_deuda_inicial: bool, vistos_en_archivo: set) ->
                     .order_by("importacion__periodo")
                     .first()
                 )
-                if deuda_inicial and deuda_inicial.valor_total_deuda != valor_total.quantize(Decimal("0.01")):
-                    errores.append(
-                        f"NRO_INMUEBLE={nro_inmueble}: VALOR_TOTAL_DEUDA={valor_total} "
-                        f"no coincide con la deuda inicial registrada "
-                        f"({deuda_inicial.valor_total_deuda})."
-                    )
+                if deuda_inicial:
+                    valor_redondeado = valor_total.quantize(Decimal("0.01"))
+                    if valor_redondeado < deuda_inicial.valor_total_deuda:
+                        errores.append(
+                            f"NRO_INMUEBLE={nro_inmueble}: VALOR_TOTAL_DEUDA={valor_redondeado} "
+                            f"es menor a la deuda original registrada "
+                            f"({deuda_inicial.valor_total_deuda}). "
+                            f"El valor con intereses debe ser mayor o igual al original."
+                        )
 
             # Verificar cuota duplicada
             if tiene_plan and nro_cuota is not None:
@@ -459,6 +462,18 @@ def _procesar_fila(fila, col, importacion, resumen):
     else:
         estado_deuda = Deuda.Estado.VIGENTE
 
+    # Si tiene plan, guardar deuda_original (sin intereses) tomada del archivo inicial
+    deuda_original_valor = None
+    if tiene_plan:
+        deuda_inicial = (
+            Deuda.objects
+            .filter(parcela=parcela)
+            .order_by("importacion__periodo")
+            .first()
+        )
+        if deuda_inicial and deuda_inicial.valor_total_deuda < valor_total:
+            deuda_original_valor = deuda_inicial.valor_total_deuda
+
     deuda = Deuda.objects.create(
         parcela=parcela,
         importacion=importacion,
@@ -468,6 +483,7 @@ def _procesar_fila(fila, col, importacion, resumen):
         anticipo=anticipo if tiene_plan else None,
         cantidad_cuotas=cantidad_cuotas if tiene_plan else None,
         estado=estado_deuda,
+        deuda_original=deuda_original_valor,
     )
 
     # ── 4. Cuota (solo si tiene plan y hay cuota informada) ───────
@@ -491,8 +507,8 @@ def _procesar_fila(fila, col, importacion, resumen):
 def _saldo_acumulado(parcela) -> Decimal:
     """
     Calcula el saldo real pendiente de una parcela sumando todo lo
-    pagado históricamente: pagos totales + anticipos + cuotas.
-    La deuda original se toma del primer archivo (deuda inicial).
+    pagado históricamente: pagos totales + cuotas.
+    Usa deuda_original si existe (plan con intereses), sino valor_total_deuda inicial.
     """
     deuda_inicial = (
         Deuda.objects
@@ -503,7 +519,18 @@ def _saldo_acumulado(parcela) -> Decimal:
     if not deuda_inicial:
         return Decimal("0")
 
-    deuda_original = deuda_inicial.valor_total_deuda
+    # Si existe una deuda con plan e intereses, usar esa como base
+    deuda_con_plan = (
+        Deuda.objects
+        .filter(parcela=parcela, deuda_original__isnull=False)
+        .order_by("importacion__periodo")
+        .first()
+    )
+    deuda_original = (
+        deuda_con_plan.valor_total_deuda
+        if deuda_con_plan
+        else deuda_inicial.valor_total_deuda
+    )
 
     total_pago = Deuda.objects.filter(parcela=parcela).aggregate(
         t=Sum("pago_total_deuda")
@@ -587,22 +614,41 @@ def consulta_por_parcela(nro_inmueble: str) -> dict:
         anticipo_total = Deuda.objects.filter(parcela=parcela).aggregate(
             t=Sum("anticipo")
         )["t"] or Decimal("0")
-        cantidad_cuotas = deuda_con_plan.cantidad_cuotas
+        cantidad_cuotas   = deuda_con_plan.cantidad_cuotas
+        deuda_actualizada = deuda_con_plan.valor_total_deuda
+        deuda_original_plan = (
+            deuda_con_plan.deuda_original
+            if deuda_con_plan.deuda_original
+            else deuda_con_plan.valor_total_deuda
+        )
+        intereses_plan = deuda_actualizada - deuda_original_plan
+        valor_cuota = (
+            (deuda_actualizada / cantidad_cuotas).quantize(Decimal("0.01"))
+            if cantidad_cuotas else Decimal("0")
+        )
         cuotas = Cuota.objects.filter(
             deuda__parcela=parcela
         ).order_by("numero_cuota")
     else:
-        anticipo_total  = Decimal("0")
-        cantidad_cuotas = None
+        anticipo_total      = Decimal("0")
+        cantidad_cuotas     = None
+        deuda_actualizada   = None
+        deuda_original_plan = None
+        intereses_plan      = Decimal("0")
+        valor_cuota         = Decimal("0")
 
     return {
-        "parcela":          parcela,
-        "deuda_actual":     deuda_actual,
-        "cuotas":           cuotas,
-        "tiene_plan":       tiene_plan,
-        "anticipo_total":   anticipo_total,
-        "cantidad_cuotas":  cantidad_cuotas,
-        "saldo_acumulado":  _saldo_acumulado(parcela),
+        "parcela":              parcela,
+        "deuda_actual":         deuda_actual,
+        "cuotas":               cuotas,
+        "tiene_plan":           tiene_plan,
+        "anticipo_total":       anticipo_total,
+        "cantidad_cuotas":      cantidad_cuotas,
+        "deuda_actualizada":    deuda_actualizada,
+        "deuda_original_plan":  deuda_original_plan,
+        "intereses_plan":       intereses_plan,
+        "valor_cuota":          valor_cuota,
+        "saldo_acumulado":      _saldo_acumulado(parcela),
     }
 
 
@@ -1031,4 +1077,154 @@ def totales_liquidaciones() -> list:
         "cantidad":         len(resultado),
         "total_cobrado":    totales["total_cobrado"]   or Decimal("0"),
         "total_comisiones": totales["total_comisiones"] or Decimal("0"),
+    }
+
+# ──────────────────────────────────────────────────────────────────
+# ESTADÍSTICAS
+# ──────────────────────────────────────────────────────────────────
+
+def estadisticas() -> dict:
+    """
+    Retorna estadísticas generales del padrón:
+    - Contado: cantidad y monto
+    - En plan: cantidad y monto cobrado en cuotas
+    - Regulares vs irregulares
+    - Deudores con 3+ períodos sin pagar desde que están en plan
+    """
+    from django.db.models import Count
+
+    todas_deudas = Deuda.objects.filter(
+        importacion__procesado=True,
+        importacion__revertido=False,
+    ).select_related("parcela__responsable", "importacion")
+
+    # ── Contado ───────────────────────────────────────────────────
+    # Parcelas cuya deuda más reciente está CANCELADA y nunca tuvieron plan
+    parcelas_contado = set()
+    monto_contado = Decimal("0")
+
+    deudas_canceladas = todas_deudas.filter(estado=Deuda.Estado.CANCELADA)
+    for deuda in deudas_canceladas:
+        tiene_plan = todas_deudas.filter(
+            parcela=deuda.parcela, tiene_plan_cuotas=True
+        ).exists()
+        if not tiene_plan:
+            parcelas_contado.add(deuda.parcela_id)
+            monto_contado += deuda.pago_total_deuda or Decimal("0")
+
+    # ── En plan ───────────────────────────────────────────────────
+    parcelas_en_plan = set(
+        todas_deudas.filter(tiene_plan_cuotas=True)
+        .values_list("parcela_id", flat=True)
+        .distinct()
+    )
+    monto_cuotas = Cuota.objects.filter(
+        importacion__procesado=True,
+        importacion__revertido=False,
+        deuda__parcela_id__in=parcelas_en_plan,
+    ).aggregate(t=Sum("monto_pagado"))["t"] or Decimal("0")
+
+    # ── Regularidad de pagos ──────────────────────────────────────
+    # Para cada parcela en plan:
+    # - períodos procesados desde que suscribió = archivos procesados desde ese período
+    # - períodos en que pagó cuota = cantidad de cuotas registradas
+    # Regular: cantidad de cuotas pagadas == períodos procesados desde suscripción
+    regulares   = []
+    irregulares = []
+    sin_pagar_3 = []  # 3 o más períodos sin pagar
+
+    # Total de archivos procesados
+    archivos_procesados = list(
+        ArchivoImportacion.objects
+        .filter(procesado=True, revertido=False)
+        .order_by("periodo")
+        .values_list("periodo", flat=True)
+    )
+
+    for parcela_id in parcelas_en_plan:
+        # Período en que suscribió el plan
+        primera_deuda_plan = (
+            todas_deudas
+            .filter(parcela_id=parcela_id, tiene_plan_cuotas=True)
+            .order_by("importacion__periodo")
+            .first()
+        )
+        if not primera_deuda_plan:
+            continue
+
+        periodo_suscripcion = primera_deuda_plan.importacion.periodo
+
+        # Períodos procesados desde la suscripción (inclusive)
+        periodos_desde_suscripcion = [
+            p for p in archivos_procesados if p >= periodo_suscripcion
+        ]
+        total_periodos = len(periodos_desde_suscripcion)
+
+        # Cuotas pagadas
+        cuotas_pagadas = Cuota.objects.filter(
+            deuda__parcela_id=parcela_id
+        ).count()
+
+        periodos_sin_pagar = total_periodos - cuotas_pagadas
+
+        responsable = primera_deuda_plan.parcela.responsable.resp_pago
+
+        if periodos_sin_pagar == 0:
+            regulares.append({
+                "parcela_id":  parcela_id,
+                "responsable": responsable,
+                "cuotas_pagadas": cuotas_pagadas,
+            })
+        else:
+            irregulares.append({
+                "parcela_id":        parcela_id,
+                "responsable":       responsable,
+                "cuotas_pagadas":    cuotas_pagadas,
+                "periodos_sin_pagar": periodos_sin_pagar,
+            })
+            if periodos_sin_pagar >= 3:
+                sin_pagar_3.append({
+                    "responsable":        responsable,
+                    "cuotas_pagadas":     cuotas_pagadas,
+                    "periodos_sin_pagar": periodos_sin_pagar,
+                })
+
+    # Ordenar irregulares por períodos sin pagar desc
+    irregulares.sort(key=lambda x: x["periodos_sin_pagar"], reverse=True)
+    sin_pagar_3.sort(key=lambda x: x["periodos_sin_pagar"], reverse=True)
+
+    return {
+        # Contado
+        "contado_cantidad": len(parcelas_contado),
+        "contado_monto":    monto_contado,
+
+        # En plan
+        "plan_cantidad":    len(parcelas_en_plan),
+        "plan_monto":       monto_cuotas,
+
+        # Regularidad
+        "regulares_cantidad":   len(regulares),
+        "irregulares_cantidad": len(irregulares),
+        "irregulares_detalle":  irregulares,
+
+        # 3 o más sin pagar
+        "sin_pagar_3_cantidad": len(sin_pagar_3),
+        "sin_pagar_3_detalle":  sin_pagar_3,
+
+        # Para gráficos
+        "grafico_modalidad": {
+            "labels": ["Contado", "En plan", "Sin datos"],
+            "data": [
+                len(parcelas_contado),
+                len(parcelas_en_plan),
+                # Deudores vigentes sin plan ni cancelación
+                todas_deudas.filter(
+                    estado=Deuda.Estado.VIGENTE, tiene_plan_cuotas=False
+                ).values("parcela").distinct().count(),
+            ],
+        },
+        "grafico_regularidad": {
+            "labels": ["Regulares", "Irregulares"],
+            "data": [len(regulares), len(irregulares)],
+        },
     }
