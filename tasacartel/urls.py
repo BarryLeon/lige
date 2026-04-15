@@ -20,6 +20,8 @@ urlpatterns = [
     path("liquidaciones/<int:pk>/",       views.liquidacion_detalle,         name="liquidacion_detalle"),
     path("liquidaciones/<int:pk>/editar/",views.liquidacion_editar,          name="liquidacion_editar"),
     path("liquidaciones/<int:pk>/estado/",views.liquidacion_cambiar_estado,  name="liquidacion_cambiar_estado"),
+    path("liquidaciones/<int:pk>/eliminar/", views.liquidacion_eliminar, name="liquidacion_eliminar",
+    ),
 
     # ── Historial por contribuyente ──────────────────────────────────────────
     path("contribuyente/<int:persona_id>/historial/", views.historial_contribuyente, name="historial_contribuyente"),

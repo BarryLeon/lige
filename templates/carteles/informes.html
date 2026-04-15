@@ -1,55 +1,9 @@
-{% extends "base.html" %}
+{% extends "layout_interno.html" %}
 {% load static %}
 
 {% block title %}Informes y estadísticas{% endblock %}
 
-{% block body %}
-
-{% if user.is_authenticated %}
-<nav class="navbar navbar-expand-lg bg-body-tertiary">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="{% url 'panel' %}">
-            <img src="{% static 'img/logo.png' %}" alt="Logo LIGE" style="max-height: 90px;">
-        </a>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button"
-                       data-bs-toggle="dropdown" style="font-size: 30px;">Publivial</a>
-                    <ul class="dropdown-menu">
-                        <li class="dropdown-submenu">
-                            <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown">Mar Chiquita</a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{% url 'home' %}">Plusvalia Tipantu</a></li>
-                            </ul>
-                        </li>
-                        <li class="dropdown-submenu">
-                            <a class="dropdown-item dropdown-toggle" href="#" data-bs-toggle="dropdown">Dolores</a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{% url 'carteles_lista' %}">Relevamiento de carteles</a></li>
-                            </ul>
-                        </li>
-                    </ul>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" style="font-size: 30px;">Vista Cristal</a>
-                </li>
-            </ul>
-            <ul class="navbar-nav ms-auto">
-                <li class="nav-item">
-                    <span class="navbar-text">Hola, {{ user.first_name|default:user.username }}</span>
-                </li>
-                <li class="nav-item ms-3">
-                    <form method="post" action="{% url 'logout' %}" class="d-inline">
-                        {% csrf_token %}
-                        <button type="submit" class="nav-link btn btn-link p-0">Cerrar Sesión</button>
-                    </form>
-                </li>
-            </ul>
-        </div>
-    </div>
-</nav>
-{% endif %}
+{% block contenido_informes %}
 
 <main style="background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); min-height: 100vh; padding: 2rem 0;">
 <div class="container-fluid px-4">
@@ -302,4 +256,4 @@
 </div>
 </main>
 
-{% endblock body %}
+{% endblock contenido_informes %}

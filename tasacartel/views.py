@@ -12,6 +12,23 @@ from .forms import (
     LiquidacionPeriodoFormSet,
     PlanDePagoForm,
 )
+from django.db.models import Max, Q
+import json
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# HELPERS
+# ════════════════════════════════════════════════════════════════════════════
+
+def _valores_tasa_json():
+    """JSON con pk → {anio, valor_m2} para el front del formulario de liquidación."""
+    return json.dumps({
+        str(v.pk): {
+            "valor_m2": str(v.valor_m2),
+            "anio": v.anio,
+        }
+        for v in ValorTasaAnual.objects.all()
+    })
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -155,11 +172,11 @@ def liquidacion_crear(request):
             liquidacion = form.save(commit=False)
             liquidacion.generado_por = request.user
 
-            # Poblar snapshot de responsables desde el cartel
+            # Poblar snapshot de responsables desde el cartel,
+            # pero respetar la superficie que el usuario ingresó en el form.
+            superficie_ingresada = form.cleaned_data["superficie_m2"]
             liquidacion.poblar_desde_cartel()
-
-            # Si el usuario editó la superficie manualmente, respetarla
-            liquidacion.superficie_m2 = form.cleaned_data["superficie_m2"]
+            liquidacion.superficie_m2 = superficie_ingresada
             liquidacion.save()
 
             # Guardar períodos y calcular cada uno
@@ -182,22 +199,13 @@ def liquidacion_crear(request):
         form    = LiquidacionForm()
         formset = LiquidacionPeriodoFormSet()
 
-    # Pasar valores de tasa como JSON para autocompletar en el front
-    import json
-    valores_tasa_json = json.dumps({
-        str(v.pk): {
-            "valor_m2": str(v.valor_m2),
-            "anio": v.anio,
-        }
-        for v in ValorTasaAnual.objects.all()
-    })
-
     return render(request, "tasacartel/liquidacion_form.html", {
-        "page_title": "Nueva liquidación",
-        "form": form,
-        "formset": formset,
-        "accion": "Crear liquidación",
-        "valores_tasa_json": valores_tasa_json,
+        "page_title":        "Nueva liquidación",
+        "form":              form,
+        "formset":           formset,
+        "accion":            "Crear liquidación",
+        "es_edicion":        False,
+        "valores_tasa_json": _valores_tasa_json(),
     })
 
 
@@ -207,18 +215,29 @@ def liquidacion_detalle(request, pk):
         Liquidacion.objects.select_related(
             "cartel", "propietario_cartel",
             "propietario_terreno", "empresa_publicista",
-            "generado_por",
         ).prefetch_related("periodos__valor_tasa"),
         pk=pk,
     )
-    revisiones = liquidacion.revisiones.order_by("-version") if not liquidacion.liquidacion_origen else []
+
+    # Raíz del árbol de versiones
+    raiz = liquidacion.liquidacion_origen or liquidacion
+
+    # Todas las versiones de esta familia, excluyendo la que se está viendo,
+    # ordenadas de más nueva a más antigua.
+    otras_versiones = (
+        Liquidacion.objects
+        .filter(Q(id=raiz.id) | Q(liquidacion_origen=raiz))
+        .exclude(pk=liquidacion.pk)
+        .order_by("-version")
+    )
+
     plan = getattr(liquidacion, "plan_de_pago", None)
 
     return render(request, "tasacartel/liquidacion_detalle.html", {
-        "page_title": f"Liquidación #{liquidacion.id}",
-        "liquidacion": liquidacion,
-        "revisiones": revisiones,
-        "plan": plan,
+        "page_title":      f"Liquidación #{liquidacion.id}",
+        "liquidacion":     liquidacion,
+        "otras_versiones": otras_versiones,
+        "plan":            plan,
     })
 
 
@@ -226,66 +245,132 @@ def liquidacion_detalle(request, pk):
 @transaction.atomic
 def liquidacion_editar(request, pk):
     """
-    Editar una liquidación crea una nueva versión.
-    La original queda en el historial como liquidacion_origen.
+    Editar una liquidación siempre crea una nueva versión.
+    Reglas:
+    - Se determina la raíz del árbol de versiones.
+    - La nueva versión tiene version = max(versiones del árbol) + 1.
+    - La liquidación editada queda con estado "objetada".
+    - Si la liquidación ya es un borrador, se permite editarla igualmente
+      (se genera otra versión nueva y la anterior borrador queda objetada).
+    - El botón "Editar" en el detalle siempre lleva a editar la versión
+      más reciente del árbol, no necesariamente la que se está viendo.
     """
     original = get_object_or_404(Liquidacion, pk=pk)
 
+    # Redirigir siempre a la última versión del árbol para evitar ramas paralelas.
+    # Si el usuario llegó aquí desde una versión vieja, lo mandamos a la más nueva.
+    raiz = original.liquidacion_origen or original
+    ultima = (
+        Liquidacion.objects
+        .filter(Q(id=raiz.id) | Q(liquidacion_origen=raiz))
+        .order_by("-version")
+        .first()
+    )
+    if ultima and ultima.pk != original.pk:
+        # El usuario está intentando editar una versión que ya no es la última.
+        messages.warning(
+            request,
+            f"Estás editando la v{ultima.version} (la más reciente). "
+            f"La v{original.version} que intentabas editar ya fue superada."
+        )
+        return redirect("tasacartel:liquidacion_editar", pk=ultima.pk)
+
+    # A partir de aquí, `original` ES la última versión del árbol.
+
     if request.method == "POST":
         form    = LiquidacionForm(request.POST)
-        formset = LiquidacionPeriodoFormSet(request.POST)
+        # El formset se asocia a None porque la nueva liquidación aún no existe;
+        # usamos prefix="periodos" para que coincida con el template.
+        formset = LiquidacionPeriodoFormSet(request.POST, prefix="periodos")
 
         if form.is_valid() and formset.is_valid():
-            # Crear nueva versión
-            nueva = form.save(commit=False)
-            nueva.pk                 = None   # nueva instancia
+
+            # 1. Calcular nueva versión
+            ultima_version = (
+                Liquidacion.objects
+                .filter(Q(id=raiz.id) | Q(liquidacion_origen=raiz))
+                .aggregate(Max("version"))["version__max"] or 1
+            )
+
+            # 2. Crear nueva liquidación
+            nueva = Liquidacion()
             nueva.cartel             = original.cartel
-            nueva.generado_por       = request.user
-            nueva.version            = original.version + 1
-            nueva.liquidacion_origen = original if not original.liquidacion_origen else original.liquidacion_origen
+            nueva.version            = ultima_version + 1
+            nueva.liquidacion_origen = raiz
             nueva.estado             = "borrador"
+            nueva.generado_por       = request.user
+
+            # Campos del form
+            nueva.es_iluminado            = form.cleaned_data["es_iluminado"]
+            nueva.aplica_descuento_ruta63 = form.cleaned_data["aplica_descuento_ruta63"]
+            nueva.km_ruta63               = form.cleaned_data.get("km_ruta63")
+            nueva.sobre_ruta2             = form.cleaned_data["sobre_ruta2"]
+            nueva.observaciones           = form.cleaned_data.get("observaciones", "")
+
+            # Snapshot de responsables (del cartel actual), luego sobreescribir superficie
+            superficie_ingresada = form.cleaned_data["superficie_m2"]
             nueva.poblar_desde_cartel()
-            nueva.superficie_m2 = form.cleaned_data["superficie_m2"]
+            nueva.superficie_m2 = superficie_ingresada
+
             nueva.save()
 
-            periodos = formset.save(commit=False)
-            for periodo in periodos:
-                periodo.pk          = None
-                periodo.liquidacion = nueva
+            # 3. Guardar períodos del formset (los que el usuario definió en el form)
+            #    El formset no tiene instance porque es una liquidación nueva;
+            #    seteamos liquidacion manualmente en cada período.
+            periodos_a_guardar = formset.save(commit=False)
+            for periodo in periodos_a_guardar:
+                periodo.liquidacion       = nueva
                 periodo.valor_m2_aplicado = periodo.valor_tasa.valor_m2
                 periodo.calcular()
                 periodo.save()
 
+            # Períodos marcados para borrar en el formset (solo aplica si tienen pk)
+            for obj in formset.deleted_objects:
+                obj.delete()
+
+            # Si el formset no tenía ningún período válido (el usuario no tocó nada),
+            # clonar los períodos del original como fallback.
+            if not nueva.periodos.exists():
+                for periodo in original.periodos.all():
+                    nuevo_periodo = LiquidacionPeriodo(
+                        liquidacion       = nueva,
+                        valor_tasa        = periodo.valor_tasa,
+                        anio_fiscal       = periodo.anio_fiscal,
+                        valor_m2_aplicado = periodo.valor_tasa.valor_m2,
+                    )
+                    nuevo_periodo.calcular()
+                    nuevo_periodo.save()
+
             nueva.recalcular_totales()
 
-            # Marcar original como objetada si venía de una objeción
+            # 4. Marcar la versión anterior como objetada
             original.estado = "objetada"
             original.save(update_fields=["estado"])
 
-            messages.success(request, f"Nueva versión v{nueva.version} generada.")
+            messages.success(
+                request,
+                f"Nueva versión v{nueva.version} generada. "
+                f"La v{original.version} quedó marcada como objetada."
+            )
             return redirect("tasacartel:liquidacion_detalle", pk=nueva.pk)
-    else:
-        # Pre-cargar con datos de la liquidación original
-        form    = LiquidacionForm(instance=original)
-        formset = LiquidacionPeriodoFormSet(instance=original)
 
-    import json
-    valores_tasa_json = json.dumps({
-        str(v.pk): {
-            "valor_m2": str(v.valor_m2),
-            "anio": v.anio,
-        }
-        for v in ValorTasaAnual.objects.all()
-    })
+    else:
+        # GET: pre-cargar el form con los datos del original
+        form = LiquidacionForm(instance=original)
+        # Pre-cargar el formset con los períodos existentes del original
+        formset = LiquidacionPeriodoFormSet(
+            instance=original,
+            prefix="periodos",
+        )
 
     return render(request, "tasacartel/liquidacion_form.html", {
-        "page_title": f"Editar liquidación #{original.id} → nueva versión",
-        "form": form,
-        "formset": formset,
-        "accion": "Generar nueva versión",
-        "es_edicion": True,
-        "original": original,
-        "valores_tasa_json": valores_tasa_json,
+        "page_title":        f"Editar Liquidación #{original.id} — nueva versión",
+        "form":              form,
+        "formset":           formset,
+        "accion":            "Generar nueva versión",
+        "es_edicion":        True,
+        "original":          original,
+        "valores_tasa_json": _valores_tasa_json(),
     })
 
 
@@ -303,6 +388,28 @@ def liquidacion_cambiar_estado(request, pk):
     return redirect("tasacartel:liquidacion_detalle", pk=pk)
 
 
+@login_required
+def liquidacion_eliminar(request, pk):
+    liq = get_object_or_404(Liquidacion, pk=pk)
+
+    if liq.estado != "borrador":
+        messages.error(request, "Solo se pueden eliminar borradores.")
+        return redirect("tasacartel:liquidacion_detalle", pk=pk)
+
+    if request.method == "POST":
+        liq.delete()
+        messages.success(request, "Liquidación eliminada.")
+        return redirect("tasacartel:liquidaciones_lista")
+
+    """# GET: pedir confirmación
+    return render(request, "tasacartel/liquidacion_confirmar_eliminar.html", {
+        "page_title": f"Eliminar Liquidación #{liq.id}",
+        "liquidacion": liq,
+    })
+"""
+    return render(request, "tasacartel/liquidacion_confirmar_eliminar.html", {
+        "liquidacion": liq,
+    })
 # ════════════════════════════════════════════════════════════════════════════
 # HISTORIAL POR CONTRIBUYENTE
 # ════════════════════════════════════════════════════════════════════════════
@@ -312,7 +419,6 @@ def historial_contribuyente(request, persona_id):
     from carteles.models import Persona
     persona = get_object_or_404(Persona, pk=persona_id)
 
-    # Liquidaciones donde figura como cualquiera de los tres responsables
     liquidaciones = Liquidacion.objects.filter(
         models_Q(propietario_cartel=persona)
         | models_Q(propietario_terreno=persona)
@@ -323,8 +429,8 @@ def historial_contribuyente(request, persona_id):
     ).order_by("-fecha_determinacion", "-version")
 
     return render(request, "tasacartel/historial_contribuyente.html", {
-        "page_title": f"Historial — {persona.nombre_completo()}",
-        "persona": persona,
+        "page_title":   f"Historial — {persona.nombre_completo()}",
+        "persona":      persona,
         "liquidaciones": liquidaciones,
     })
 
@@ -360,13 +466,13 @@ def plan_crear(request, liquidacion_pk):
             return redirect("tasacartel:plan_detalle", pk=plan.pk)
     else:
         form = PlanDePagoForm(initial={
-            "monto_anticipo": round(liquidacion.monto_total * Decimal("0.10"), 2),
+            "monto_anticipo":            round(liquidacion.monto_total * Decimal("0.10"), 2),
             "tasa_financiacion_mensual": Decimal("0.04"),
         })
 
     return render(request, "tasacartel/plan_form.html", {
-        "page_title": "Nuevo plan de pago",
-        "form": form,
+        "page_title":  "Nuevo plan de pago",
+        "form":        form,
         "liquidacion": liquidacion,
     })
 
@@ -384,7 +490,7 @@ def plan_detalle(request, pk):
 
     return render(request, "tasacartel/plan_detalle.html", {
         "page_title": f"Plan de pago #{plan.id}",
-        "plan": plan,
+        "plan":       plan,
         "total_plan": total_plan,
     })
 
@@ -400,6 +506,3 @@ def cuota_marcar_pagada(request, cuota_pk):
         cuota.save(update_fields=["pagado", "fecha_pago"])
         messages.success(request, f"Cuota {cuota.nro_cuota} marcada como pagada.")
     return redirect("tasacartel:plan_detalle", pk=cuota.plan_id)
-
-
-# Fix: importar Q correctamente

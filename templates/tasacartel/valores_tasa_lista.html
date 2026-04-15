@@ -36,9 +36,9 @@
         <tbody>
           {% for v in valores %}
           <tr>
-            <td><strong>{{ v.anio }}</strong></td>
-            <td>${{ v.valor_m2|floatformat:2 }}</td>
-            <td>
+            <td class="text-center"><strong>{{ v.anio }}</strong></td>
+            <td class="text-center">${{ v.valor_m2|floatformat:2 }}</td>
+            <td class="text-center">
               {% if v.recargo_iluminado_pct > 0 %}
                 <span class="badge bg-warning text-dark">{{ v.recargo_iluminado_pct }}%</span>
               {% else %}

@@ -119,7 +119,7 @@
   <div class="table-responsive rounded-3" style="background: rgba(0,0,0,0.30);">
     <table class="table table-dark table-hover align-middle mb-0">
       <thead style="border-bottom: 2px solid rgba(255,255,255,0.12);">
-        <tr class="text-white-50 small text-uppercase">
+        <tr class="text-white-50 small text-uppercase text-center">
           <th class="ps-3">#</th>
           <th>Foto</th>
           <th>Tipo cartel</th>
@@ -135,9 +135,9 @@
         {% for c in carteles %}
         <tr>
 
-          <td class="ps-3 text-white-50 small">{{ c.id }}</td>
+          <td class="ps-3 text-white-50 small text-center">{{ c.id }}</td>
 
-          <td>
+          <td class="text-center align-middle">
             {% if c.foto_anotada %}
               <img src="{{ c.foto_anotada.url }}" width="90" height="65"
                    class="rounded" style="object-fit:cover;">
@@ -149,11 +149,11 @@
             {% endif %}
           </td>
 
-          <td class="text-white small">
+          <td class="text-white small text-center">
             {{ c.get_tipo_cartel_display|default:"—" }}
           </td>
 
-          <td>
+          <td class="text-center">
             {% if c.estado_cartel == 'bueno' %}
               <span class="badge bg-success">Bueno</span>
             {% elif c.estado_cartel == 'regular' %}
@@ -165,11 +165,11 @@
             {% endif %}
           </td>
 
-          <td class="text-white small">
+          <td class="text-white small text-center">
             {% if c.distancia %}{{ c.distancia|floatformat:1 }} m{% else %}—{% endif %}
           </td>
 
-          <td>
+          <td class="text-center">
             {% if c.superficie_m2 %}
               <span class="text-success fw-bold">{{ c.superficie_m2|floatformat:2 }} m²</span>
             {% else %}
@@ -177,7 +177,7 @@
             {% endif %}
           </td>
 
-          <td>
+          <td class="text-center">
             {% if c.estado_procesamiento == 'ok' %}
               <span class="badge bg-success">✓ OK</span>
             {% elif c.estado_procesamiento == 'error' %}
@@ -192,14 +192,14 @@
             {% endif %}
           </td>
 
-          <td class="text-white-50 small">
+          <td class="text-white-50 small text-center">
             {% if c.fecha %}
               {{ c.fecha|date:"d/m/Y" }}<br>
               <span style="font-size:0.72rem;">{{ c.fecha|date:"H:i" }}</span>
             {% else %}—{% endif %}
           </td>
 
-          <td class="pe-3">
+          <td class="pe-3 text-center align-middle">
             <a href="{% url 'carteles_detalle' c.id %}"
                class="btn btn-sm btn-outline-light">
               Ver →

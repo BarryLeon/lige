@@ -178,14 +178,28 @@ class Liquidacion(models.Model):
     )
 
     # ── Auditoría ────────────────────────────────────────────────────────────
-    generado_por = models.ForeignKey(
-        "auth.User",
+    # NOTA: Se usa IntegerField en lugar de ForeignKey a auth.User para evitar
+    # JOINs cross-database (Liquidacion vive en 'tasas_carteles', auth en 'default').
+    # El acceso al objeto User se hace a través de la propiedad `generado_por`.
+    generado_por_id_val = models.IntegerField(
         null=True, blank=True,
-        on_delete=models.SET_NULL,
-        related_name="liquidaciones_generadas",
-        verbose_name="Generado por",
-        db_constraint=False,  # Evita error de clave foránea si se borra el usuario
+        db_column="generado_por_id",  # mantiene el mismo nombre de columna en BD
+        verbose_name="Generado por (user id)",
     )
+
+    @property
+    def generado_por(self):
+        from django.contrib.auth import get_user_model
+        if not self.generado_por_id_val:
+            return None
+        return get_user_model().objects.using("default").filter(
+            pk=self.generado_por_id_val
+        ).first()
+
+    @generado_por.setter
+    def generado_por(self, user):
+        self.generado_por_id_val = user.pk if user else None
+
     fecha_determinacion = models.DateField(
         default=timezone.now,
         verbose_name="Fecha de determinación",
@@ -359,27 +373,35 @@ class LiquidacionPeriodo(models.Model):
             - self.descuento_ruta63
         )
 
-        # Mora: meses desde dic. del año fiscal hasta fecha de determinación
-        from dateutil.relativedelta import relativedelta
+        # Mora
         import datetime
-        vencimiento = datetime.date(self.anio_fiscal, 12, 31)
-        fecha_det   = self.liquidacion.fecha_determinacion
-        # fecha_determinacion es DateField → siempre date, nunca datetime
+        fecha_det = self.liquidacion.fecha_determinacion
+
         if isinstance(fecha_det, datetime.datetime):
             fecha_det = fecha_det.date()
-        if fecha_det > vencimiento:
-            diff = relativedelta(fecha_det, vencimiento)
-            self.meses_mora = diff.months + diff.years * 12
+
+        anio_actual = fecha_det.year
+
+        
+        #  AÑO ACTUAL → contar mes parcial
+        if self.anio_fiscal == anio_actual:
+            self.meses_mora = fecha_det.month
+
+        #  AÑOS ANTERIORES → 12 meses
+        elif self.anio_fiscal < anio_actual:
+            self.meses_mora = 12 + fecha_det.month  # 12 meses completos + mes parcial del año actual
+
+        # 🔥 FUTURO
         else:
             self.meses_mora = 0
-
+       
         self.interes_mora = (
             self.subtotal_con_recargos
             * self.meses_mora
             * self.tasa_mora_mensual
         )
-        self.total_periodo = self.subtotal_con_recargos + self.interes_mora
 
+        self.total_periodo = self.subtotal_con_recargos + self.interes_mora
 
 # ════════════════════════════════════════════════════════════════════════════
 # PLAN DE PAGO
@@ -548,7 +570,6 @@ class PlanDePago(models.Model):
         #     ))
         CuotaPlan.objects.bulk_create(cuotas)
 
-        
 
 # ════════════════════════════════════════════════════════════════════════════
 # CUOTA DEL PLAN

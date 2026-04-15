@@ -61,6 +61,12 @@
             <td>
               <a href="{% url 'tasacartel:liquidacion_detalle' liq.pk %}"
                  class="btn btn-sm btn-outline-light">Ver</a>
+              {% if liquidacion.estado == "borrador" %}
+              <a href="{% url 'tasacartel:liquidacion_eliminar' liquidacion.id %}"
+                class="btn btn-danger">
+                Eliminar borrador
+              </a>
+              {% endif %}
             </td>
           </tr>
           {% empty %}

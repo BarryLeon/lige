@@ -10,13 +10,25 @@
       <h2 class="text-white mb-0">Liquidación #{{ liquidacion.id }}
         <span class="badge bg-secondary ms-2">v{{ liquidacion.version }}</span>
       </h2>
-      <small class="text-white">{{ liquidacion.fecha_determinacion }} — {{ liquidacion.generado_por }}</small>
+      <small class="text-white-50">{{ liquidacion.fecha_determinacion }} — {{ liquidacion.generado_por }}</small>
     </div>
     <div class="d-flex gap-2 flex-wrap">
       <a href="{% url 'tasacartel:liquidaciones_lista' %}" class="btn btn-outline-light btn-sm">← Volver</a>
+
+      {# Botón Editar: solo si el estado lo permite #}
+      {% if liquidacion.estado != 'pagada' and liquidacion.estado != 'en_plan' %}
       <a href="{% url 'tasacartel:liquidacion_editar' liquidacion.pk %}" class="btn btn-outline-warning btn-sm">
-        Editar / Nueva versión
+        ✏ Editar / Nueva versión
       </a>
+      {% endif %}
+
+      {# Botón Eliminar: solo borradores #}
+      {% if liquidacion.estado == 'borrador' %}
+     <a href="{% url 'tasacartel:liquidacion_eliminar' liquidacion.pk %}"
+   class="btn btn-outline-danger btn-sm">
+   🗑 Eliminar borrador
+</a>
+      {% endif %}
     </div>
   </div>
 
@@ -28,10 +40,8 @@
 
   <div class="row g-4">
 
-    {# ── SECCIÓN SUPERIOR: Responsables y Tabla (Ancho Completo) ── #}
+    {# ── Responsables ── #}
     <div class="col-12">
-      
-      {# Responsables #}
       <div class="card bg-dark text-white border-secondary mb-4">
         <div class="card-header border-secondary"><h6 class="mb-0">Responsables solidarios</h6></div>
         <div class="card-body">
@@ -64,33 +74,31 @@
         </div>
       </div>
 
-      {# Períodos liquidados con SCROLL corregido #}
+      {# ── Períodos liquidados ── #}
       <div class="card bg-dark text-white border-secondary mb-4">
         <div class="card-header border-secondary"><h6 class="mb-0">Períodos liquidados</h6></div>
         <div class="card-body p-0">
           <div class="table-responsive">
             <table class="table table-dark table-sm table-bordered mb-0" style="min-width: 800px; font-size: 0.9rem;">
               <thead class="table-secondary text-dark">
-                <tr>
+                <tr class="text-center">
                   <th class="px-2">Año</th>
                   <th class="px-2">Valor m²</th>
                   <th class="px-2">Base</th>
                   <th class="px-2">Recargo</th>
                   <th class="px-2">Descuento</th>
                   <th class="px-2">Subtotal</th>
-                  <th style="width: 100px; font-size: 0.8rem; line-height: 1.1;" class="text-center">
-                    Mora<br>
-                    <span class="fw-normal">({{ liquidacion.periodos.first.meses_mora|default:"—" }} m.)</span>
-                  </th>
+                  <th class="px-2">Meses Mora</th>
+                  <th class="px-2">Intereses Mora</th>
                   <th class="px-2"><strong>Total</strong></th>
                 </tr>
               </thead>
               <tbody>
                 {% for p in liquidacion.periodos.all %}
-                <tr>
+                <tr class="text-center">
                   <td class="px-2">{{ p.anio_fiscal }}</td>
-                  <td class="px-2">${{ p.valor_m2_aplicado|floatformat:2 }}</td>
-                  <td class="px-2">${{ p.subtotal_base|floatformat:2 }}</td>
+                  <td class="px-2 text-end">${{ p.valor_m2_aplicado|floatformat:2 }}</td>
+                  <td class="px-2 text-end">${{ p.subtotal_base|floatformat:2 }}</td>
                   <td class="px-2">
                     {% if p.recargo_iluminado > 0 %}
                       <span class="text-warning">+${{ p.recargo_iluminado|floatformat:2 }}</span>
@@ -101,17 +109,19 @@
                       <span class="text-success">−${{ p.descuento_ruta63|floatformat:2 }}</span>
                     {% else %}—{% endif %}
                   </td>
-                  <td class="px-2">${{ p.subtotal_con_recargos|floatformat:2 }}</td>
-                  <td class="text-danger text-end px-2" style="letter-spacing: -0.3px;">${{ p.interes_mora|floatformat:2 }}</td>
-                  <td class="px-2"><strong>${{ p.total_periodo|floatformat:2 }}</strong></td>
+                  <td class="px-2 text-end">${{ p.subtotal_con_recargos|floatformat:2 }}</td>
+                  <td class="px-2 text-center">{{ p.meses_mora|default:"—" }}</td>
+                  <td class="px-2 text-end text-danger">${{ p.interes_mora|floatformat:2 }}</td>
+                  <td class="px-2 text-end"><strong>${{ p.total_periodo|floatformat:2 }}</strong></td>
                 </tr>
                 {% endfor %}
               </tbody>
               <tfoot class="table-secondary text-dark">
-                <tr>
+                <tr class="text-end">
                   <td colspan="5" class="text-end"><strong>Totales:</strong></td>
                   <td><strong>${{ liquidacion.monto_base_total|floatformat:2 }}</strong></td>
-                  <td class="text-danger text-end"><strong>${{ liquidacion.monto_mora_total|floatformat:2 }}</strong></td>
+                  <td></td>
+                  <td class="text-danger"><strong>${{ liquidacion.monto_mora_total|floatformat:2 }}</strong></td>
                   <td><strong>${{ liquidacion.monto_total|floatformat:2 }}</strong></td>
                 </tr>
               </tfoot>
@@ -121,11 +131,10 @@
       </div>
     </div>
 
-    {# ── SECCIÓN INFERIOR: Estado y Resumen (Dos columnas) ── #}
+    {# ── Estado y Resumen financiero ── #}
     <div class="col-md-6">
-      {# Estado y acciones #}
       <div class="card bg-dark text-white border-secondary h-100">
-        <div class="card-header border-secondary"><h6 class="mb-0">Estado de Liquidación</h6></div>
+        <div class="card-header border-secondary"><h6 class="mb-0 text-center">Estado de Liquidación</h6></div>
         <div class="card-body">
           {% with estado=liquidacion.estado %}
           <span class="badge fs-6 mb-3
@@ -178,32 +187,31 @@
     </div>
 
     <div class="col-md-6">
-      {# Resumen financiero con texto corregido #}
       <div class="card bg-dark text-white border-secondary h-100">
-        <div class="card-header border-secondary"><h6 class="mb-0">Resumen Financiero</h6></div>
+        <div class="card-header border-secondary"><h6 class="mb-0 text-center">Resumen Financiero</h6></div>
         <div class="card-body">
           <dl class="row mb-0 small">
             <dt class="col-7 text-white-50">Cartel</dt>
             <dd class="col-5 text-white">#{{ liquidacion.cartel.id }}</dd>
-            
+
             <dt class="col-7 text-white-50">Superficie liquidada</dt>
             <dd class="col-5 text-white">{{ liquidacion.superficie_m2 }} m²</dd>
-            
+
             <dt class="col-7 text-white-50">Iluminado / Ruta 63 / R2</dt>
             <dd class="col-5 text-white">
-                {% if liquidacion.es_iluminado %}S{% else %}N{% endif %} / 
-                {% if liquidacion.aplica_descuento_ruta63 %}S{% else %}N{% endif %} / 
-                {% if liquidacion.sobre_ruta2 %}S{% else %}N{% endif %}
+              {% if liquidacion.es_iluminado %}S{% else %}N{% endif %} /
+              {% if liquidacion.aplica_descuento_ruta63 %}S{% else %}N{% endif %} /
+              {% if liquidacion.sobre_ruta2 %}S{% else %}N{% endif %}
             </dd>
 
             <hr class="border-secondary my-2">
-            
+
             <dt class="col-7 text-white-50">Monto base total</dt>
             <dd class="col-5 text-white">${{ liquidacion.monto_base_total|floatformat:2 }}</dd>
-            
+
             <dt class="col-7 text-danger">Intereses mora</dt>
             <dd class="col-5 text-danger"><strong>${{ liquidacion.monto_mora_total|floatformat:2 }}</strong></dd>
-            
+
             <dt class="col-7 fs-6 text-white"><strong>Total actualizado</strong></dt>
             <dd class="col-5 fs-6 text-info"><strong>${{ liquidacion.monto_total|floatformat:2 }}</strong></dd>
           </dl>
@@ -211,48 +219,85 @@
       </div>
     </div>
 
-    {# ── SECCIÓN FINAL: Planes y Versiones ── #}
-    {% if plan or revisiones %}
+    {# ── Plan de pago y Historial de versiones ── #}
+    {% if plan or otras_versiones %}
     <div class="col-12 mt-2">
-        <div class="row g-4">
-            {% if plan %}
-            <div class="col-md-6">
-                <div class="card bg-dark text-white border-warning">
-                  <div class="card-header border-warning text-warning"><h6 class="mb-0">Plan de pago activo</h6></div>
-                  <div class="card-body">
-                    <p class="small mb-1">Plan #{{ plan.id }} — {{ plan.cantidad_cuotas }} cuotas</p>
-                    <p class="small mb-2">Estado: <strong>{{ plan.get_estado_display }}</strong></p>
-                    <a href="{% url 'tasacartel:plan_detalle' plan.pk %}" class="btn btn-warning btn-sm text-dark w-100">
-                      Ver plan de pago
-                    </a>
-                  </div>
-                </div>
-            </div>
-            {% endif %}
+      <div class="row g-4">
 
-            {% if revisiones %}
-            <div class="col-md-6">
-                <div class="card bg-dark text-white border-secondary">
-                  <div class="card-header border-secondary"><h6 class="mb-0">Versiones anteriores</h6></div>
-                  <div class="card-body p-0">
-                    <table class="table table-dark table-sm mb-0">
-                      <thead><tr><th>Versión</th><th>Fecha</th><th>Total</th><th></th></tr></thead>
-                      <tbody>
-                        {% for rev in revisiones %}
-                        <tr>
-                          <td>v{{ rev.version }}</td>
-                          <td class="small">{{ rev.fecha_determinacion|date:"d/m/Y" }}</td>
-                          <td>${{ rev.monto_total|floatformat:2 }}</td>
-                          <td class="text-end"><a href="{% url 'tasacartel:liquidacion_detalle' rev.pk %}" class="btn btn-xs btn-outline-light py-0">Ver</a></td>
-                        </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+        {% if plan %}
+        <div class="col-md-6">
+          <div class="card bg-dark text-white border-warning">
+            <div class="card-header border-warning text-warning"><h6 class="mb-0">Plan de pago activo</h6></div>
+            <div class="card-body">
+              <p class="small mb-1">Plan #{{ plan.id }} — {{ plan.cantidad_cuotas }} cuotas</p>
+              <p class="small mb-2">Estado: <strong>{{ plan.get_estado_display }}</strong></p>
+              <a href="{% url 'tasacartel:plan_detalle' plan.pk %}" class="btn btn-warning btn-sm text-dark w-100">
+                Ver plan de pago
+              </a>
             </div>
-            {% endif %}
+          </div>
         </div>
+        {% endif %}
+
+        {% if otras_versiones %}
+        <div class="{% if plan %}col-md-6{% else %}col-12{% endif %}">
+          <div class="card bg-dark text-white border-secondary">
+            <div class="card-header border-secondary">
+              <h6 class="mb-0">
+                Historial de versiones
+                <span class="text-muted small ms-2">— actualmente en v{{ liquidacion.version }}</span>
+              </h6>
+            </div>
+            <div class="card-body p-0">
+              <table class="table table-dark table-sm mb-0">
+                <thead>
+                  <tr>
+                    <th>Versión</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                    <th class="text-end">Total</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for rev in otras_versiones %}
+                  <tr>
+                    <td>
+                      v{{ rev.version }}
+                      {% if rev.version > liquidacion.version %}
+                        <span class="badge bg-primary ms-1" style="font-size:0.65rem;">más nueva</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <span class="badge
+                        {% if rev.estado == 'borrador' %}bg-secondary
+                        {% elif rev.estado == 'notificada' %}bg-primary
+                        {% elif rev.estado == 'conformada' %}bg-success
+                        {% elif rev.estado == 'en_plan' %}bg-warning text-dark
+                        {% elif rev.estado == 'pagada' %}bg-success
+                        {% elif rev.estado == 'objetada' %}bg-danger
+                        {% endif %}" style="font-size:0.7rem;">
+                        {{ rev.get_estado_display }}
+                      </span>
+                    </td>
+                    <td class="small">{{ rev.fecha_determinacion|date:"d/m/Y" }}</td>
+                    <td class="text-end">${{ rev.monto_total|floatformat:2 }}</td>
+                    <td class="text-end">
+                      <a href="{% url 'tasacartel:liquidacion_detalle' rev.pk %}"
+                         class="btn btn-outline-light btn-sm py-0 px-2" style="font-size:0.75rem;">
+                        Ver
+                      </a>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+      </div>
     </div>
     {% endif %}
 
