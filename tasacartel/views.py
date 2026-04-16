@@ -249,9 +249,9 @@ def liquidacion_editar(request, pk):
     Reglas:
     - Se determina la raíz del árbol de versiones.
     - La nueva versión tiene version = max(versiones del árbol) + 1.
-    - La liquidación editada queda con estado "objetada".
-    - Si la liquidación ya es un borrador, se permite editarla igualmente
-      (se genera otra versión nueva y la anterior borrador queda objetada).
+    - Si la liquidación editada estaba en borrador, conserva ese estado.
+    - Si la liquidación editada ya había sido notificada, la versión anterior
+      queda como "objetada".
     - El botón "Editar" en el detalle siempre lleva a editar la versión
       más reciente del árbol, no necesariamente la que se está viendo.
     """
@@ -343,14 +343,18 @@ def liquidacion_editar(request, pk):
 
             nueva.recalcular_totales()
 
-            # 4. Marcar la versión anterior como objetada
-            original.estado = "objetada"
+            # 4. La versión anterior conserva borrador si aún no fue notificada.
+            #    Si ya estaba avanzada en el circuito, queda objetada.
+            estado_anterior = "borrador" if original.estado == "borrador" else "objetada"
+            original.estado = estado_anterior
             original.save(update_fields=["estado"])
+
+            descripcion_estado = "como borrador" if estado_anterior == "borrador" else "como objetada"
 
             messages.success(
                 request,
                 f"Nueva versión v{nueva.version} generada. "
-                f"La v{original.version} quedó marcada como objetada."
+                f"La v{original.version} quedó registrada {descripcion_estado}."
             )
             return redirect("tasacartel:liquidacion_detalle", pk=nueva.pk)
 
@@ -423,6 +427,8 @@ def historial_contribuyente(request, persona_id):
         models_Q(propietario_cartel=persona)
         | models_Q(propietario_terreno=persona)
         | models_Q(empresa_publicista=persona)
+    ).filter(
+        estado="pagada"
     ).select_related(
         "cartel", "propietario_cartel",
         "propietario_terreno", "empresa_publicista",

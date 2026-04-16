@@ -11,7 +11,7 @@
         — Liquidación #{{ plan.liquidacion_id }}</small>
     </div>
     <a href="{% url 'tasacartel:liquidacion_detalle' plan.liquidacion_id %}"
-       class="btn btn-outline-light btn-sm">← Ver liquidación</a>
+       class="btn btn-outline-light ">← Ver liquidación</a>
   </div>
 
   {% for msg in messages %}
@@ -106,7 +106,7 @@
               {% if not cuota.pagado %}
               <form method="post" action="{% url 'tasacartel:cuota_marcar_pagada' cuota.pk %}">
                 {% csrf_token %}
-                <button class="btn btn-sm btn-outline-success">✓Pago</button>
+                <button class="btn btn-outline-success">✓Pago</button>
               </form>
               {% endif %}
             </td>

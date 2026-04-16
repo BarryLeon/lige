@@ -134,7 +134,7 @@
                   {% else %}
                     <form method="post" action="{% url 'generar_liquidacion' archivo.pk %}">
                       {% csrf_token %}
-                      <button type="submit" class="btn btn-sm btn-outline-info"
+                      <button type="submit" class="btn btn-outline-info"
                               onclick="return confirm('¿Generar liquidación para {{ archivo.nombre_archivo }}?')">
                         Generar liquidación
                       </button>
@@ -142,7 +142,7 @@
                   {% endif %}
                   <form method="post" action="{% url 'revertir_procesamiento' archivo.pk %}">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-outline-warning"
+                    <button type="submit" class="btn btn-outline-warning"
                             onclick="return confirm('¿Revertir el procesamiento de {{ archivo.nombre_archivo }}? Se eliminarán todas las deudas y cuotas generadas.')">
                       Revertir
                     </button>

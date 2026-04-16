@@ -7,41 +7,16 @@
   <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
       <h2 class="text-white mb-0">Historial del contribuyente</h2>
-      <p class="text-muted mb-0">{{ persona.nombre_completo }} — {{ persona.cuit_dni }}</p>
+      <p class="text-secondary mb-0">{{ persona.nombre_completo }} — {{ persona.cuit_dni }}</p>
     </div>
     <a href="{% url 'tasacartel:liquidaciones_lista' %}" class="btn btn-outline-light btn-sm">← Volver</a>
   </div>
 
-  {# Resumen estadístico #}
   <div class="row g-3 mb-4">
-    <div class="col-md-3">
-      <div class="card bg-dark text-white border-secondary text-center p-3">
-        <div class="fs-4 fw-bold">{{ liquidaciones|length }}</div>
-        <div class="small text-muted">Liquidaciones totales</div>
-      </div>
-    </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
       <div class="card bg-dark text-white border-success text-center p-3">
-        <div class="fs-4 fw-bold text-success">
-          {{ liquidaciones|selectattr:"estado","equalto","pagada"|list|length }}
-        </div>
-        <div class="small text-muted">Pagadas</div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card bg-dark text-white border-warning text-center p-3">
-        <div class="fs-4 fw-bold text-warning">
-          {{ liquidaciones|selectattr:"estado","equalto","en_plan"|list|length }}
-        </div>
-        <div class="small text-muted">En plan de pago</div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card bg-dark text-white border-danger text-center p-3">
-        <div class="fs-4 fw-bold text-danger">
-          {{ liquidaciones|selectattr:"estado","equalto","notificada"|list|length }}
-        </div>
-        <div class="small text-muted">Notificadas / pendientes</div>
+        <div class="fs-4 fw-bold text-success">{{ liquidaciones|length }}</div>
+        <div class="small text-secondary">Liquidaciones pagadas</div>
       </div>
     </div>
   </div>
@@ -49,7 +24,7 @@
   {# Tabla de historial #}
   <div class="card bg-dark text-white border-secondary">
     <div class="card-header border-secondary">
-      <h6 class="mb-0">Todas las liquidaciones</h6>
+      <h6 class="mb-0">Liquidaciones pagadas</h6>
     </div>
     <div class="card-body p-0">
       <table class="table table-dark table-hover table-bordered mb-0">
@@ -109,8 +84,8 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="9" class="text-center text-muted py-4">
-              Este contribuyente no tiene liquidaciones registradas.
+            <td colspan="9" class="text-center text-secondary py-4">
+              Contribuyente sin liquidaciones pagadas.
             </td>
           </tr>
           {% endfor %}

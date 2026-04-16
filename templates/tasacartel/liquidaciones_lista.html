@@ -19,7 +19,7 @@
     <div class="card-body p-0">
       <table class="table table-dark table-hover table-bordered mb-0">
         <thead class="table-secondary text-dark">
-          <tr>
+          <tr class="text-center">
             <th>#</th>
             <th>Cartel</th>
             <th>Responsable principal</th>
@@ -34,7 +34,7 @@
         </thead>
         <tbody>
           {% for liq in liquidaciones %}
-          <tr>
+          <tr class="text-center">
             <td>{{ liq.id }} <span class="badge bg-secondary">v{{ liq.version }}</span></td>
             <td>#{{ liq.cartel_id }}</td>
             <td class="small">
@@ -60,7 +60,7 @@
             <td class="small">{{ liq.fecha_determinacion }}</td>
             <td>
               <a href="{% url 'tasacartel:liquidacion_detalle' liq.pk %}"
-                 class="btn btn-sm btn-outline-light">Ver</a>
+                 class="btn btn-outline-light">Ver</a>
               {% if liquidacion.estado == "borrador" %}
               <a href="{% url 'tasacartel:liquidacion_eliminar' liquidacion.id %}"
                 class="btn btn-danger">

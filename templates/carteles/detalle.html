@@ -180,7 +180,7 @@
         </dl>
         <a href="https://www.google.com/maps?q={{ cartel.lat|stringformat:"f" }},{{ cartel.lon|stringformat:"f" }}"
            target="_blank" rel="noopener"
-           class="btn btn-sm btn-outline-light mt-1">
+           class="btn btn-outline-light mt-1">
           🗺️ Ver en Google Maps
         </a>
       </div>
@@ -273,7 +273,7 @@
               <a href="{% url 'carteles_personas_crear' %}" class="text-white-50 small mt-1 d-inline-block">+ Nueva persona</a>
             </div>
           </div>
-          <button type="submit" class="btn btn-outline-light btn-sm px-4">Guardar</button>
+          <button type="submit" class="btn btn-outline-light px-4">Guardar</button>
         </form>
       </div>
 
@@ -299,7 +299,7 @@
             </div>
             <form method="post" action="{% url 'carteles_pub_eliminar' cartel.id pub.id %}">
               {% csrf_token %}
-              <button type="submit" class="btn btn-sm btn-outline-danger"
+              <button type="submit" class="btn  btn-outline-danger"
                       onclick="return confirm('¿Eliminar este registro?')">✕</button>
             </form>
           </div>
@@ -370,7 +370,7 @@
               (el operador deberá cargar uno nuevo)
             </label>
           </div>
-          <button type="submit" class="btn btn-danger btn-sm px-4"
+          <button type="submit" class="btn btn-danger px-4"
                   onclick="return confirm('¿Confirmás el descarte de este registro?')">
             Descartar registro
           </button>
@@ -397,7 +397,7 @@
         {% endif %}
         <form method="post" action="{% url 'carteles_restaurar' cartel.id %}" class="mt-3">
           {% csrf_token %}
-          <button type="submit" class="btn btn-outline-warning btn-sm"
+          <button type="submit" class="btn btn-outline-warning "
                   onclick="return confirm('¿Restaurar este registro como activo?')">
             ↩️ Restaurar como activo
           </button>

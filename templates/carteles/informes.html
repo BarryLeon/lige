@@ -12,13 +12,13 @@
   <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
     <h2 class="text-white m-0 fw-bold">📊 Informes y estadísticas</h2>
     <div class="d-flex gap-2 flex-wrap">
-      <a href="{% url 'carteles_personas_lista' %}" class="btn btn-outline-light btn-sm">👤 Personas</a>
-      <a href="{% url 'carteles_parcelas_lista' %}" class="btn btn-outline-light btn-sm">🗺 Parcelas</a>
+      <a href="{% url 'carteles_personas_lista' %}" class="btn btn-outline-light ">👤 Alta Personas</a>
+      <a href="{% url 'carteles_parcelas_lista' %}" class="btn btn-outline-light ">🗺 Alta Parcelas</a>
       <a href="{% url 'carteles_exportar_excel' %}?{{ request.GET.urlencode }}"
-         class="btn btn-success btn-sm">⬇️ Excel</a>
+         class="btn btn-success ">⬇️ Descargar en Excel</a>
       <a href="{% url 'carteles_exportar_pdf' %}?{{ request.GET.urlencode }}"
-         class="btn btn-danger btn-sm">⬇️ PDF</a>
-      <a href="{% url 'carteles_lista' %}" class="btn btn-outline-light btn-sm">← Volver al listado</a>
+         class="btn btn-danger ">⬇️ Generar PDF</a>
+      <a href="{% url 'carteles_lista' %}" class="btn btn-outline-light">← Volver al listado</a>
     </div>
   </div>
 

@@ -1,3 +1,5 @@
+from decimal import Decimal, InvalidOperation
+
 from django import forms
 from django.forms import inlineformset_factory
 from .models import ValorTasaAnual, Liquidacion, LiquidacionPeriodo, PlanDePago
@@ -91,6 +93,34 @@ LiquidacionPeriodoFormSet = inlineformset_factory(
 # ════════════════════════════════════════════════════════════════════════════
 
 class PlanDePagoForm(forms.ModelForm):
+    monto_anticipo = forms.CharField(
+        widget=forms.TextInput(attrs={"class": "form-control", "inputmode": "decimal"})
+    )
+    tasa_financiacion_mensual = forms.CharField(
+        widget=forms.TextInput(attrs={"class": "form-control", "inputmode": "decimal"})
+    )
+
+    def _normalizar_decimal(self, valor):
+        if valor in (None, ""):
+            return valor
+        if isinstance(valor, Decimal):
+            return valor
+
+        valor_normalizado = str(valor).strip().replace(" ", "").replace(",", ".")
+        try:
+            return Decimal(valor_normalizado)
+        except InvalidOperation:
+            raise forms.ValidationError("Ingresá un número válido.")
+
+    def clean_monto_anticipo(self):
+        return self._normalizar_decimal(self.cleaned_data.get("monto_anticipo"))
+
+    def clean_tasa_financiacion_mensual(self):
+        tasa = self._normalizar_decimal(self.cleaned_data.get("tasa_financiacion_mensual"))
+        if tasa in (None, ""):
+            return tasa
+        return tasa.quantize(Decimal("0.0001"))
+
     class Meta:
         model  = PlanDePago
         fields = [
@@ -100,8 +130,6 @@ class PlanDePagoForm(forms.ModelForm):
             "observaciones",
         ]
         widgets = {
-            "monto_anticipo":            forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
             "cantidad_cuotas":           forms.NumberInput(attrs={"class": "form-control", "min": "1"}),
-            "tasa_financiacion_mensual": forms.NumberInput(attrs={"class": "form-control", "step": "0.0001"}),
             "observaciones":             forms.Textarea(attrs={"class": "form-control", "rows": 2}),
         }

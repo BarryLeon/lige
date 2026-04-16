@@ -493,32 +493,34 @@ class PlanDePago(models.Model):
         # Limpiar cuotas previas si se regenera
         self.cuotas.all().delete()
 
-        saldo = self.monto_deuda_base - self.monto_anticipo
+        saldo = (self.monto_deuda_base - self.monto_anticipo).quantize(Decimal("0.01"))
         if saldo < 0:
             saldo = Decimal("0.00")
+
+        tasa_mensual = self.tasa_financiacion_mensual.quantize(Decimal("0.0001"))
 
         cuotas = []
 
         # ─────────────────────────────────────────────
         # CUOTAS IGUALES INTERES SIMPLE
         # ─────────────────────────────────────────────
-        interes_total = saldo * self.tasa_financiacion_mensual * self.cantidad_cuotas
-        total_financiado = saldo + interes_total
+        interes_total = (saldo * tasa_mensual * self.cantidad_cuotas).quantize(Decimal("0.01"))
+        total_financiado = (saldo + interes_total).quantize(Decimal("0.01"))
 
         cuota_fija = (
-            total_financiado / self.cantidad_cuotas
+            (total_financiado / self.cantidad_cuotas).quantize(Decimal("0.01"))
             if self.cantidad_cuotas > 0
             else total_financiado
         )
 
         capital_por_cuota = (
-            saldo / self.cantidad_cuotas
+            (saldo / self.cantidad_cuotas).quantize(Decimal("0.01"))
             if self.cantidad_cuotas > 0
             else saldo
         )
 
         interes_por_cuota = (
-            interes_total / self.cantidad_cuotas
+            (interes_total / self.cantidad_cuotas).quantize(Decimal("0.01"))
             if self.cantidad_cuotas > 0
             else Decimal("0.00")
         )

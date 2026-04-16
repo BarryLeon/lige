@@ -48,9 +48,9 @@
             <td class="text-muted small">{{ v.observaciones|default:"—" }}</td>
             <td class="text-center">
               <a href="{% url 'tasacartel:valor_tasa_editar' v.pk %}"
-                 class="btn btn-sm btn-outline-light me-1">Editar</a>
+                 class="btn btn-outline-light me-1" style="padding: 2px 6px; font-size: 15px;">Editar</a>
               <a href="{% url 'tasacartel:valor_tasa_eliminar' v.pk %}"
-                 class="btn btn-sm btn-outline-danger">Eliminar</a>
+                 class="btn btn-outline-danger"style="padding: 2px 6px; font-size: 15px;">Eliminar</a>
             </td>
           </tr>
           {% empty %}
