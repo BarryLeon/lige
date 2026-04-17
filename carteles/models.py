@@ -170,6 +170,11 @@ class Cartel(models.Model):
     ancho_m      = models.FloatField(null=True, blank=True)
     alto_m       = models.FloatField(null=True, blank=True)
     superficie_m2 = models.FloatField(null=True, blank=True)
+    metodo_superficie = models.CharField(max_length=20, blank=True, null=True)
+    manual_esquinas = models.JSONField(blank=True, null=True)
+    origen_medicion = models.CharField(max_length=20, blank=True, null=True)
+    diagnostico_geometria_inconsistente = models.BooleanField(default=False)
+    detalle_diagnostico = models.TextField(blank=True, null=True)
     foto_anotada = models.ImageField(
         upload_to="carteles/anotadas/", null=True, blank=True,
     )
@@ -255,6 +260,8 @@ class Cartel(models.Model):
         advertencias = []
         if self.advertencia_sin_texto:
             advertencias.append("No se encontró texto legible en el cartel. Puede ser un cartel solo con imágenes o la foto no tiene suficiente resolución.")
+        if self.diagnostico_geometria_inconsistente and self.detalle_diagnostico:
+            advertencias.append(self.detalle_diagnostico)
         return advertencias
 
     def publicidad_actual(self):
@@ -262,6 +269,9 @@ class Cartel(models.Model):
 
     def propietario_actual(self):
         return self.propietario_cartel
+
+    def tiene_esquinas_manuales(self):
+        return bool(self.manual_esquinas and len(self.manual_esquinas) == 4)
 
 
 # ════════════════════════════════════════════════════════════════════════════

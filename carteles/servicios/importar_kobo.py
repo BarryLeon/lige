@@ -112,6 +112,14 @@ def _procesar_foto(cartel: Cartel, contenido_foto: bytes) -> None:
     resultado = detectar_cartel(ruta_foto, cartel.distancia)
 
     error = resultado.get("error")
+    cartel.error_sin_deteccion = False
+    cartel.error_imagen_ilegible = False
+    cartel.error_distancia_invalida = False
+    cartel.error_zoom_sospechoso = False
+    cartel.metodo_superficie = None
+    cartel.origen_medicion = None
+    cartel.diagnostico_geometria_inconsistente = False
+    cartel.detalle_diagnostico = None
 
     if error == "imagen_ilegible":
         cartel.error_imagen_ilegible = True
@@ -137,10 +145,17 @@ def _procesar_foto(cartel: Cartel, contenido_foto: bytes) -> None:
             cartel.bbox_x = bbox["x"]
             cartel.bbox_y = bbox["y"]
             cartel.bbox_w = bbox["w"]
-            cartel.bbox_h = bbox["h"]
+        cartel.bbox_h = bbox["h"]
         cartel.ancho_m = resultado["ancho_m"]
         cartel.alto_m = resultado["alto_m"]
         cartel.superficie_m2 = resultado["superficie_m2"]
+        cartel.metodo_superficie = resultado.get("metodo_superficie")
+        cartel.origen_medicion = resultado.get("origen_medicion")
+        cartel.diagnostico_geometria_inconsistente = resultado.get(
+            "diagnostico_geometria_inconsistente",
+            False,
+        )
+        cartel.detalle_diagnostico = resultado.get("detalle_diagnostico")
         cartel.estado_procesamiento = "ok"
 
         # Marcar zoom sospechoso (no es error bloqueante, pero avisa al operador)

@@ -1,4 +1,10 @@
+import json
+import os
+import tempfile
+
 from django.contrib import messages
+from django.core.files.base import ContentFile
+from django.core.exceptions import ValidationError
 from django.db.models import Q, Sum, Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -10,6 +16,119 @@ from .models import Cartel, HistorialPublicidad, Parcela, Persona
 from .servicios.exportar import exportar_excel, exportar_pdf
 from .servicios.importar_kobo import importar_kobo
 from .servicios.kobo_delete import borrar_submission_kobo
+
+
+def _resetear_estado_deteccion(cartel):
+    cartel.error_sin_deteccion = False
+    cartel.error_imagen_ilegible = False
+    cartel.error_distancia_invalida = False
+    cartel.error_zoom_sospechoso = False
+    cartel.metodo_superficie = None
+    cartel.origen_medicion = None
+    cartel.detalle_error = None
+    cartel.diagnostico_geometria_inconsistente = False
+    cartel.detalle_diagnostico = None
+    cartel.estado_procesamiento = "pendiente"
+
+
+def _parsear_esquinas_manuales(payload):
+    try:
+        data = json.loads(payload)
+    except (TypeError, ValueError):
+        raise ValidationError("No se pudieron interpretar las esquinas enviadas.")
+
+    if not isinstance(data, list) or len(data) != 4:
+        raise ValidationError("Debés marcar exactamente 4 esquinas.")
+
+    esquinas = []
+    for punto in data:
+        if not isinstance(punto, dict):
+            raise ValidationError("Formato inválido de esquinas.")
+        try:
+            x = float(punto["x"])
+            y = float(punto["y"])
+        except (KeyError, TypeError, ValueError):
+            raise ValidationError("Cada esquina debe tener coordenadas válidas.")
+        esquinas.append({"x": round(x, 2), "y": round(y, 2)})
+    return esquinas
+
+
+def _guardar_foto_anotada(cartel, foto_array):
+    if foto_array is None:
+        return
+
+    import cv2
+
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        cv2.imwrite(tmp.name, foto_array)
+        tmp_path = tmp.name
+    with open(tmp_path, "rb") as f:
+        cartel.foto_anotada.save(
+            f"anotada_{cartel.kobo_id or cartel.id}.jpg",
+            ContentFile(f.read()),
+            save=False,
+        )
+    os.unlink(tmp_path)
+
+
+def _aplicar_resultado_detector(cartel, resultado):
+    error = resultado.get("error")
+
+    if error == "imagen_ilegible":
+        cartel.error_imagen_ilegible = True
+        cartel.detalle_error = "La imagen no pudo abrirse."
+        cartel.estado_procesamiento = "error"
+        return "imagen_ilegible"
+
+    if error == "distancia_invalida":
+        cartel.error_distancia_invalida = True
+        cartel.detalle_error = "Distancia inválida."
+        cartel.estado_procesamiento = "error"
+        return "distancia_invalida"
+
+    if error == "sin_deteccion":
+        cartel.error_sin_deteccion = True
+        cartel.cartel_detectado = False
+        cartel.detalle_error = "No se encontró ningún cartel."
+        cartel.estado_procesamiento = "error"
+        return "sin_deteccion"
+
+    cartel.cartel_detectado = resultado["detectado"]
+    cartel.confianza_deteccion = resultado["confianza"]
+    bbox = resultado["bbox"]
+    if bbox:
+        cartel.bbox_x, cartel.bbox_y = bbox["x"], bbox["y"]
+        cartel.bbox_w, cartel.bbox_h = bbox["w"], bbox["h"]
+    cartel.ancho_m = resultado["ancho_m"]
+    cartel.alto_m = resultado["alto_m"]
+    cartel.superficie_m2 = resultado["superficie_m2"]
+    cartel.metodo_superficie = resultado.get("metodo_superficie")
+    cartel.origen_medicion = resultado.get("origen_medicion")
+    cartel.diagnostico_geometria_inconsistente = resultado.get(
+        "diagnostico_geometria_inconsistente",
+        False,
+    )
+    cartel.detalle_diagnostico = resultado.get("detalle_diagnostico")
+    cartel.estado_procesamiento = "ok"
+    if resultado.get("zoom_sospechoso"):
+        cartel.error_zoom_sospechoso = True
+    cartel.texto_ocr = resultado.get("texto_ocr")
+    cartel.advertencia_sin_texto = resultado.get("sin_texto", False)
+
+    _guardar_foto_anotada(cartel, resultado.get("foto_anotada_array"))
+    return None
+
+
+def _reprocesar_cartel(cartel):
+    from .servicios.cartel_detector import detectar_cartel
+
+    _resetear_estado_deteccion(cartel)
+    cartel.save()
+    return detectar_cartel(
+        cartel.foto.path,
+        cartel.distancia,
+        esquinas_manuales=cartel.manual_esquinas,
+    )
 
 
 # ── Lista de carteles ────────────────────────────────────────────────────────
@@ -86,72 +205,132 @@ def reprocesar_cartel(request, pk):
         messages.error(request, "Este cartel no tiene foto. No se puede reprocesar.")
         return redirect("carteles_detalle", pk=pk)
 
-    from .servicios.cartel_detector import detectar_cartel
-
-    cartel.error_sin_deteccion = False
-    cartel.error_imagen_ilegible = False
-    cartel.error_distancia_invalida = False
-    cartel.detalle_error = None
-    cartel.estado_procesamiento = "pendiente"
-    cartel.save()
-
-    resultado = detectar_cartel(cartel.foto.path, cartel.distancia)
-    error = resultado.get("error")
+    resultado = _reprocesar_cartel(cartel)
+    error = _aplicar_resultado_detector(cartel, resultado)
 
     if error == "imagen_ilegible":
-        cartel.error_imagen_ilegible = True
-        cartel.detalle_error = "La imagen no pudo abrirse."
-        cartel.estado_procesamiento = "error"
         messages.error(request, "La imagen está corrupta o no pudo leerse.")
-
     elif error == "distancia_invalida":
-        cartel.error_distancia_invalida = True
-        cartel.detalle_error = "Distancia inválida."
-        cartel.estado_procesamiento = "error"
         messages.error(request, "La distancia registrada es inválida.")
-
     elif error == "sin_deteccion":
-        cartel.error_sin_deteccion = True
-        cartel.cartel_detectado = False
-        cartel.detalle_error = "No se encontró ningún cartel."
-        cartel.estado_procesamiento = "error"
         messages.warning(request, "No se detectó ningún cartel en la imagen.")
-
     else:
-        cartel.cartel_detectado = resultado["detectado"]
-        cartel.confianza_deteccion = resultado["confianza"]
-        bbox = resultado["bbox"]
-        if bbox:
-            cartel.bbox_x, cartel.bbox_y = bbox["x"], bbox["y"]
-            cartel.bbox_w, cartel.bbox_h = bbox["w"], bbox["h"]
-        cartel.ancho_m = resultado["ancho_m"]
-        cartel.alto_m = resultado["alto_m"]
-        cartel.superficie_m2 = resultado["superficie_m2"]
-        cartel.estado_procesamiento = "ok"
-        if resultado.get("zoom_sospechoso"):
-            cartel.error_zoom_sospechoso = True
-        cartel.texto_ocr = resultado.get("texto_ocr")
-        cartel.advertencia_sin_texto = resultado.get("sin_texto", False)
-
-        foto_array = resultado.get("foto_anotada_array")
-        if foto_array is not None:
-            import cv2, tempfile, os
-            from django.core.files.base import ContentFile
-            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-                cv2.imwrite(tmp.name, foto_array)
-                tmp_path = tmp.name
-            with open(tmp_path, "rb") as f:
-                cartel.foto_anotada.save(
-                    f"anotada_{cartel.kobo_id or cartel.id}.jpg",
-                    ContentFile(f.read()), save=False,
-                )
-            os.unlink(tmp_path)
-
         messages.success(
             request,
             f"Reprocesado OK — {cartel.ancho_m}m × {cartel.alto_m}m = "
-            f"{cartel.superficie_m2} m² [{resultado.get('metodo_deteccion')}]"
+            f"{cartel.superficie_m2} m² "
+            f"[{resultado.get('metodo_deteccion')}/{resultado.get('metodo_superficie')}]"
         )
+
+    cartel.save()
+    return redirect("carteles_detalle", pk=pk)
+
+
+def corregir_distancia_y_reprocesar(request, pk):
+    if request.method != "POST":
+        return redirect("carteles_lista")
+
+    cartel = get_object_or_404(Cartel, pk=pk)
+
+    if not cartel.foto:
+        messages.error(request, "Este cartel no tiene foto. No se puede recalcular.")
+        return redirect("carteles_detalle", pk=pk)
+
+    distancia_str = (request.POST.get("distancia") or "").strip().replace(",", ".")
+    try:
+        nueva_distancia = float(distancia_str)
+    except ValueError:
+        messages.error(request, "Ingresá una distancia válida en metros.")
+        return redirect("carteles_detalle", pk=pk)
+
+    cartel.distancia = nueva_distancia
+    try:
+        cartel.full_clean()
+    except ValidationError as exc:
+        messages.error(request, f"No se pudo guardar la nueva distancia: {exc}")
+        return redirect("carteles_detalle", pk=pk)
+
+    cartel.save(update_fields=["distancia", "actualizado"])
+
+    resultado = _reprocesar_cartel(cartel)
+    error = _aplicar_resultado_detector(cartel, resultado)
+
+    if error == "imagen_ilegible":
+        messages.error(request, "La imagen está corrupta o no pudo leerse.")
+    elif error == "distancia_invalida":
+        messages.error(request, "La nueva distancia registrada es inválida.")
+    elif error == "sin_deteccion":
+        messages.warning(request, "No se detectó ningún cartel en la imagen.")
+    else:
+        messages.success(
+            request,
+            f"Distancia actualizada a {cartel.distancia:.1f} m y superficie recalculada: "
+            f"{cartel.superficie_m2} m² [{resultado.get('metodo_superficie')}]"
+        )
+
+    cartel.save()
+    return redirect("carteles_detalle", pk=pk)
+
+
+def guardar_esquinas_manuales(request, pk):
+    if request.method != "POST":
+        return redirect("carteles_lista")
+
+    cartel = get_object_or_404(Cartel, pk=pk)
+    if not cartel.foto:
+        messages.error(request, "Este cartel no tiene foto. No se pueden guardar esquinas.")
+        return redirect("carteles_detalle", pk=pk)
+
+    try:
+        esquinas = _parsear_esquinas_manuales(request.POST.get("esquinas_json"))
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+        return redirect("carteles_detalle", pk=pk)
+
+    cartel.manual_esquinas = esquinas
+    cartel.save(update_fields=["manual_esquinas", "actualizado"])
+
+    resultado = _reprocesar_cartel(cartel)
+    error = _aplicar_resultado_detector(cartel, resultado)
+
+    if error:
+        messages.warning(
+            request,
+            "Se guardaron las esquinas manuales, pero no se pudo recalcular correctamente.",
+        )
+    else:
+        messages.success(
+            request,
+            f"Esquinas manuales guardadas. Nueva superficie: {cartel.superficie_m2} m² "
+            f"[{cartel.origen_medicion}/{cartel.metodo_superficie}]"
+        )
+
+    cartel.save()
+    return redirect("carteles_detalle", pk=pk)
+
+
+def quitar_esquinas_manuales(request, pk):
+    if request.method != "POST":
+        return redirect("carteles_lista")
+
+    cartel = get_object_or_404(Cartel, pk=pk)
+    cartel.manual_esquinas = None
+    cartel.save(update_fields=["manual_esquinas", "actualizado"])
+
+    if not cartel.foto:
+        messages.success(request, "Se volvió al modo automático.")
+        return redirect("carteles_detalle", pk=pk)
+
+    resultado = _reprocesar_cartel(cartel)
+    error = _aplicar_resultado_detector(cartel, resultado)
+
+    if error:
+        messages.warning(
+            request,
+            "Se quitaron las esquinas manuales, pero el reproceso automático tuvo problemas.",
+        )
+    else:
+        messages.success(request, "Se volvió al modo automático de detección.")
 
     cartel.save()
     return redirect("carteles_detalle", pk=pk)

@@ -79,11 +79,27 @@
         <p class="text-white-50 small mb-1 text-uppercase">
           Foto original{% if cartel.foto_anotada %} (sin procesar){% endif %}
         </p>
-        <img src="{{ cartel.foto.url }}"
-             class="img-fluid rounded-3 w-100"
-             style="max-height: 300px; object-fit: contain;
-                    background: rgba(0,0,0,0.4);"
-             alt="Foto original cartel {{ cartel.id }}">
+        <div id="editor-esquinas"
+             class="position-relative rounded-3 overflow-hidden"
+             style="background: rgba(0,0,0,0.4);">
+          <img src="{{ cartel.foto.url }}"
+               id="foto-editor-esquinas"
+               class="img-fluid rounded-3 w-100"
+               style="max-height: 420px; object-fit: contain;"
+               alt="Foto original cartel {{ cartel.id }}">
+          <svg id="overlay-esquinas"
+               class="position-absolute top-0 start-0 w-100 h-100"
+               viewBox="0 0 100 100"
+               preserveAspectRatio="none"
+               style="pointer-events: none;"></svg>
+        </div>
+        <p class="text-white-50 small mt-2 mb-0">
+          {% if cartel.tiene_esquinas_manuales %}
+            Esquinas manuales activas. Podés volver a marcarlas o regresar al modo automático.
+          {% else %}
+            Si la detección no quedó bien, podés marcar manualmente 4 esquinas sobre esta foto.
+          {% endif %}
+        </p>
       </div>
       {% endif %}
 
@@ -111,11 +127,58 @@
           <div class="text-white-50 small mt-2">
             {{ cartel.ancho_m|floatformat:2 }} m × {{ cartel.alto_m|floatformat:2 }} m
           </div>
+          <div class="text-white-50 small mt-2">
+            Método: {{ cartel.metodo_superficie|default:"—"|capfirst }}
+          </div>
+          <div class="text-white-50 small mt-1">
+            Origen: {{ cartel.origen_medicion|default:"automatica"|capfirst }}
+          </div>
         {% else %}
           <div class="display-4 fw-bold text-white-50">—</div>
           <div class="text-white-50 small mt-1">No calculada</div>
         {% endif %}
       </div>
+
+      {% if cartel.diagnostico_geometria_inconsistente and cartel.detalle_diagnostico %}
+      <div class="rounded-3 p-4"
+           style="background: rgba(255,193,7,0.12); border: 1px solid rgba(255,193,7,0.35);">
+        <p class="text-warning small text-uppercase mb-2">Diagnóstico geométrico</p>
+        <p class="text-white mb-0 small">{{ cartel.detalle_diagnostico }}</p>
+      </div>
+      {% endif %}
+
+      {% if cartel.foto and cartel.estado_registro == 'activo' %}
+      <div class="rounded-3 p-4"
+           style="background: rgba(0,0,0,0.30); border: 1px solid rgba(255,255,255,0.08);">
+        <p class="text-white-50 small text-uppercase mb-3">Ajuste manual de esquinas</p>
+        <form method="post" action="{% url 'carteles_esquinas_manuales' cartel.id %}" id="form-esquinas-manuales">
+          {% csrf_token %}
+          <input type="hidden" name="esquinas_json" id="id_esquinas_json">
+          <p class="text-white small mb-2">
+            Marcá 4 puntos en este orden: superior izquierda, superior derecha, inferior derecha, inferior izquierda.
+          </p>
+          <p class="text-white-50 small mb-3" id="estado-esquinas-manuales">
+            Todavía no marcaste las 4 esquinas.
+          </p>
+          <div class="d-flex gap-2 flex-wrap">
+            <button type="button" class="btn btn-outline-light" id="btn-reset-esquinas">
+              Reiniciar puntos
+            </button>
+            <button type="submit" class="btn btn-success" id="btn-guardar-esquinas" disabled>
+              Guardar 4 esquinas y recalcular
+            </button>
+          </div>
+        </form>
+        {% if cartel.tiene_esquinas_manuales %}
+        <form method="post" action="{% url 'carteles_esquinas_manuales_quitar' cartel.id %}" class="mt-3">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-outline-warning">
+            Volver a detección automática
+          </button>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
 
       {# Datos del relevamiento #}
       <div class="rounded-3 p-4"
@@ -186,6 +249,36 @@
       </div>
       {% endif %}
 
+      {% if cartel.foto and cartel.estado_registro == 'activo' %}
+      <div class="rounded-3 p-4"
+           style="background: rgba(0,0,0,0.30); border: 1px solid rgba(255,255,255,0.08);">
+        <p class="text-white-50 small text-uppercase mb-3">Corregir distancia y recalcular</p>
+        <form method="post" action="{% url 'carteles_corregir_distancia' cartel.id %}" class="row g-3 align-items-end">
+          {% csrf_token %}
+          <div class="col-12 col-md-6">
+            <label for="id_distancia_recalculo" class="form-label text-white-50 small mb-1">
+              Nueva distancia en metros
+            </label>
+            <input type="number"
+                   step="0.1"
+                   min="0.1"
+                   class="form-control bg-transparent text-white border-secondary"
+                   id="id_distancia_recalculo"
+                   name="distancia"
+                   value="{{ cartel.distancia|default_if_none:'' }}">
+          </div>
+          <div class="col-12 col-md-6">
+            <button type="submit" class="btn btn-warning w-100">
+              Recalcular con nueva distancia
+            </button>
+          </div>
+        </form>
+        <p class="text-white-50 small mt-3 mb-0">
+          Este reproceso usa la misma foto y actualiza las medidas calculadas del cartel.
+        </p>
+      </div>
+      {% endif %}
+
       {# Estado de procesamiento #}
       <div class="rounded-3 p-4"
            style="background: rgba(0,0,0,0.30); border: 1px solid rgba(255,255,255,0.08);">
@@ -201,6 +294,12 @@
         </div>
         {% if cartel.detalle_error %}
           <p class="text-white-50 small mb-0">{{ cartel.detalle_error }}</p>
+        {% endif %}
+        {% if cartel.metodo_superficie %}
+          <p class="text-white-50 small mb-0 mt-2">Método superficie: {{ cartel.metodo_superficie }}</p>
+        {% endif %}
+        {% if cartel.origen_medicion %}
+          <p class="text-white-50 small mb-0 mt-2">Origen medición: {{ cartel.origen_medicion }}</p>
         {% endif %}
         {% if cartel.kobo_id %}
           <p class="text-white-50 small mb-0 mt-2">ID Kobo: {{ cartel.kobo_id }}</p>
@@ -410,5 +509,116 @@
 
 </div>
 </main>
+
+{{ cartel.manual_esquinas|default_if_none:"[]"|json_script:"cartel-esquinas-iniciales" }}
+
+<script>
+  (function () {
+    const editor = document.getElementById("editor-esquinas");
+    const imagen = document.getElementById("foto-editor-esquinas");
+    const overlay = document.getElementById("overlay-esquinas");
+    const input = document.getElementById("id_esquinas_json");
+    const estado = document.getElementById("estado-esquinas-manuales");
+    const btnReset = document.getElementById("btn-reset-esquinas");
+    const btnGuardar = document.getElementById("btn-guardar-esquinas");
+    const inicialesNode = document.getElementById("cartel-esquinas-iniciales");
+
+    if (!editor || !imagen || !overlay || !input || !estado || !btnReset || !btnGuardar || !inicialesNode) {
+      return;
+    }
+
+    let puntos = [];
+    try {
+      puntos = JSON.parse(inicialesNode.textContent || "[]");
+    } catch (error) {
+      puntos = [];
+    }
+
+    const etiquetas = [
+      "superior izquierda",
+      "superior derecha",
+      "inferior derecha",
+      "inferior izquierda"
+    ];
+
+    function clamp(valor, min, max) {
+      return Math.max(min, Math.min(max, valor));
+    }
+
+    function actualizarEstado() {
+      input.value = JSON.stringify(puntos);
+      if (puntos.length === 0) {
+        estado.textContent = "Todavía no marcaste las 4 esquinas.";
+      } else if (puntos.length < 4) {
+        estado.textContent = `Marcaste ${puntos.length} de 4. Falta ${etiquetas[puntos.length]}.`;
+      } else {
+        estado.textContent = "Las 4 esquinas están listas para guardar y recalcular.";
+      }
+      btnGuardar.disabled = puntos.length !== 4;
+    }
+
+    function renderizar() {
+      overlay.innerHTML = "";
+      if (puntos.length >= 2) {
+        const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+        polyline.setAttribute("fill", "rgba(255, 193, 7, 0.18)");
+        polyline.setAttribute("stroke", "#ffc107");
+        polyline.setAttribute("stroke-width", "0.7");
+        const coords = puntos.map((p) => `${(p.x / imagen.naturalWidth) * 100},${(p.y / imagen.naturalHeight) * 100}`);
+        if (puntos.length === 4) {
+          coords.push(coords[0]);
+        }
+        polyline.setAttribute("points", coords.join(" "));
+        overlay.appendChild(polyline);
+      }
+
+      puntos.forEach((punto, index) => {
+        const xPct = (punto.x / imagen.naturalWidth) * 100;
+        const yPct = (punto.y / imagen.naturalHeight) * 100;
+
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", xPct);
+        circle.setAttribute("cy", yPct);
+        circle.setAttribute("r", "1.3");
+        circle.setAttribute("fill", "#00e5ff");
+        circle.setAttribute("stroke", "#ffffff");
+        circle.setAttribute("stroke-width", "0.3");
+        overlay.appendChild(circle);
+
+        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        label.setAttribute("x", xPct + 1.5);
+        label.setAttribute("y", yPct - 1.5);
+        label.setAttribute("fill", "#ffffff");
+        label.setAttribute("font-size", "3.6");
+        label.textContent = `${index + 1}`;
+        overlay.appendChild(label);
+      });
+
+      actualizarEstado();
+    }
+
+    editor.addEventListener("click", function (event) {
+      if (!imagen.naturalWidth || puntos.length >= 4) {
+        return;
+      }
+
+      const rect = imagen.getBoundingClientRect();
+      const x = clamp(((event.clientX - rect.left) / rect.width) * imagen.naturalWidth, 0, imagen.naturalWidth);
+      const y = clamp(((event.clientY - rect.top) / rect.height) * imagen.naturalHeight, 0, imagen.naturalHeight);
+      puntos.push({ x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) });
+      renderizar();
+    });
+
+    btnReset.addEventListener("click", function () {
+      puntos = [];
+      renderizar();
+    });
+
+    if (puntos.length > 4) {
+      puntos = puntos.slice(0, 4);
+    }
+    renderizar();
+  })();
+</script>
 
 {% endblock contenido_detalle %}
