@@ -120,22 +120,32 @@
   <div class="rounded-3 p-4 mb-4" style="background: rgba(0,0,0,0.3);">
     <form method="get" action="{% url 'carteles_informes' %}">
       <div class="row g-3">
-        <div class="col-12 col-md-5">
-          <input type="text" name="q" value="{{ q }}"
+        <div class="col-12 col-md-4">
+          <input type="text" name="propietario" value="{{ propietario }}"
                  class="form-control bg-transparent text-white border-secondary"
-                 placeholder="Buscar en texto OCR, observaciones, operador, propietario, empresa...">
+                 placeholder="Propietario del cartel o del terreno">
         </div>
-        <div class="col-6 col-md-2">
+        <div class="col-12 col-md-3">
+          <input type="text" name="parcela" value="{{ parcela }}"
+                 class="form-control bg-transparent text-white border-secondary"
+                 placeholder="Parcela o dirección">
+        </div>
+        <div class="col-12 col-md-3">
+          <input type="text" name="texto_ocr" value="{{ texto_ocr }}"
+                 class="form-control bg-transparent text-white border-secondary"
+                 placeholder="Texto OCR u observación">
+        </div>
+        <div class="col-6 col-md-1">
           <input type="date" name="fecha_desde" value="{{ fecha_desde }}"
                  class="form-control bg-transparent text-white border-secondary"
                  title="Fecha desde">
         </div>
-        <div class="col-6 col-md-2">
+        <div class="col-6 col-md-1">
           <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}"
                  class="form-control bg-transparent text-white border-secondary"
                  title="Fecha hasta">
         </div>
-        <div class="col-6 col-md-1">
+        <div class="col-6 col-md-2">
           <select name="tipo_cartel" class="form-select bg-transparent text-white border-secondary">
             <option value="">Tipo</option>
             {% for val, label in tipo_choices %}
@@ -160,15 +170,51 @@
   </div>
 
   {# ── Resultados ──────────────────────────────────────────────────────── #}
-  {% if q or fecha_desde or fecha_hasta or tipo_cartel or estado_proc %}
+  {% if propietario or parcela or texto_ocr or fecha_desde or fecha_hasta or tipo_cartel or estado_proc %}
     <p class="text-white-50 small mb-2">{{ carteles|length }} resultado(s)</p>
   {% endif %}
 
   {% if carteles %}
-  <div class="table-responsive rounded-3" style="background: rgba(0,0,0,0.30);">
+  <form method="post" id="form-exportacion-carteles">
+    {% csrf_token %}
+    <input type="hidden" name="propietario" value="{{ propietario }}">
+    <input type="hidden" name="parcela" value="{{ parcela }}">
+    <input type="hidden" name="texto_ocr" value="{{ texto_ocr }}">
+    <input type="hidden" name="fecha_desde" value="{{ fecha_desde }}">
+    <input type="hidden" name="fecha_hasta" value="{{ fecha_hasta }}">
+    <input type="hidden" name="tipo_cartel" value="{{ tipo_cartel }}">
+    <input type="hidden" name="estado_proc" value="{{ estado_proc }}">
+    <input type="hidden" name="alcance_pdf" id="id_alcance_pdf" value="seleccionados">
+
+    <div class="rounded-3 p-3 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-3"
+         style="background: rgba(0,0,0,0.25);">
+      <div>
+        <p class="text-white mb-1 fw-semibold">Exportación desde la selección</p>
+        <p class="text-white-50 small mb-0">
+          Marcá carteles puntuales para el PDF resumen o elegí en el PDF detalle si querés todos los filtrados o solo los marcados.
+        </p>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        <button type="button"
+                class="btn btn-outline-danger"
+                onclick="exportarPdfResumenSeleccionados()">
+          PDF resumen de selección
+        </button>
+        <button type="button"
+                class="btn btn-danger"
+                onclick="exportarPdfDetalleDirecto()">
+          PDF detalle por cartel
+        </button>
+      </div>
+    </div>
+
+    <div class="table-responsive rounded-3" style="background: rgba(0,0,0,0.30);">
     <table class="table table-dark table-hover align-middle mb-0 small">
       <thead style="border-bottom: 2px solid rgba(255,255,255,0.12);">
         <tr class="text-white-50 text-uppercase">
+          <th class="ps-3" style="width: 48px;">
+            <input type="checkbox" class="form-check-input" id="seleccionar-todos-carteles" title="Seleccionar todos">
+          </th>
           <th class="ps-3">#</th>
           <th>Foto</th>
           <th>Tipo / Estado</th>
@@ -185,6 +231,12 @@
       <tbody>
         {% for c in carteles %}
         <tr>
+          <td class="ps-3">
+            <input type="checkbox"
+                   class="form-check-input cartel-checkbox"
+                   name="cartel_ids"
+                   value="{{ c.id }}">
+          </td>
           <td class="ps-3 text-white-50">{{ c.id }}</td>
           <td>
             {% if c.foto_anotada %}
@@ -246,7 +298,9 @@
         {% endfor %}
       </tbody>
     </table>
-  </div>
+    </div>
+  </form>
+  <iframe name="descarga_pdf_oculta" id="descarga_pdf_oculta" style="display:none;"></iframe>
   {% else %}
   <div class="text-center py-5">
     <p class="text-white-50 fs-5">No hay resultados para los filtros seleccionados.</p>
@@ -255,5 +309,99 @@
 
 </div>
 </main>
+
+<script>
+  function setAlcancePdf(valor) {
+    const input = document.getElementById("id_alcance_pdf");
+    if (input) {
+      input.value = valor;
+    }
+  }
+
+  function prepararFormularioPdf(action, alcance) {
+    const form = document.getElementById("form-exportacion-carteles");
+    if (!form) {
+      return null;
+    }
+
+    setAlcancePdf(alcance);
+    form.setAttribute("action", action);
+    form.setAttribute("target", "descarga_pdf_oculta");
+    return form;
+  }
+
+  function exportarPdfResumenSeleccionados() {
+    const form = prepararFormularioPdf("{% url 'carteles_exportar_pdf' %}", "seleccionados");
+    if (!form) {
+      return;
+    }
+
+    window.setTimeout(function () {
+      form.submit();
+    }, 50);
+  }
+
+  function exportarPdfDetalle(alcance) {
+    const form = prepararFormularioPdf("{% url 'carteles_exportar_pdf_detalle' %}", alcance);
+    if (!form) {
+      return;
+    }
+
+    window.setTimeout(function () {
+      form.submit();
+    }, 50);
+  }
+
+  function exportarPdfDetalleDirecto() {
+    const checkboxesMarcados = Array.from(
+      document.querySelectorAll(".cartel-checkbox:checked")
+    );
+    const alcance = checkboxesMarcados.length > 0 ? "seleccionados" : "filtrados";
+    exportarPdfDetalle(alcance);
+  }
+
+  (function () {
+    const marcarTodos = document.getElementById("seleccionar-todos-carteles");
+    const checkboxes = Array.from(document.querySelectorAll(".cartel-checkbox"));
+    const contador = document.getElementById("cantidad-carteles-seleccionados");
+
+    function actualizarContador() {
+      const cantidad = checkboxes.filter((checkbox) => checkbox.checked).length;
+      if (contador) {
+        contador.textContent = String(cantidad);
+      }
+      if (marcarTodos) {
+        marcarTodos.checked = checkboxes.length > 0 && cantidad === checkboxes.length;
+        marcarTodos.indeterminate = cantidad > 0 && cantidad < checkboxes.length;
+      }
+    }
+
+    if (marcarTodos) {
+      marcarTodos.addEventListener("change", function () {
+        checkboxes.forEach((checkbox) => {
+          checkbox.checked = marcarTodos.checked;
+        });
+        actualizarContador();
+      });
+    }
+
+    checkboxes.forEach((checkbox) => {
+      checkbox.addEventListener("change", actualizarContador);
+    });
+
+    actualizarContador();
+  })();
+</script>
+<style>
+.form-control::placeholder,
+.form-select::placeholder {
+  color: rgba(255,255,255,0.7) !important;
+}
+
+.form-control,
+.form-select {
+  color: white !important;
+}
+</style>
 
 {% endblock contenido_informes %}

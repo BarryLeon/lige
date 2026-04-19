@@ -1,8 +1,9 @@
-from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
-from django.utils import timezone
 from decimal import Decimal
+
 from dateutil.relativedelta import relativedelta
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db import models
+from django.utils import timezone
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -344,6 +345,17 @@ class LiquidacionPeriodo(models.Model):
     def __str__(self):
         return f"Año {self.anio_fiscal} — Liq. #{self.liquidacion_id} — ${self.total_periodo}"
 
+    def _calcular_meses_mora(self, fecha_determinacion):
+        """
+        Calcula los meses de mora contando el año fiscal completo vencido
+        más los meses transcurridos del año de determinación.
+        """
+        if self.anio_fiscal > fecha_determinacion.year:
+            return 0
+
+        diferencia_anios = fecha_determinacion.year - self.anio_fiscal
+        return (diferencia_anios * 12) + fecha_determinacion.month
+
     def calcular(self):
         """
         Ejecuta el cálculo completo del período y guarda los campos derivados.
@@ -380,20 +392,7 @@ class LiquidacionPeriodo(models.Model):
         if isinstance(fecha_det, datetime.datetime):
             fecha_det = fecha_det.date()
 
-        anio_actual = fecha_det.year
-
-        
-        #  AÑO ACTUAL → contar mes parcial
-        if self.anio_fiscal == anio_actual:
-            self.meses_mora = fecha_det.month
-
-        #  AÑOS ANTERIORES → 12 meses
-        elif self.anio_fiscal < anio_actual:
-            self.meses_mora = 12 + fecha_det.month  # 12 meses completos + mes parcial del año actual
-
-        # 🔥 FUTURO
-        else:
-            self.meses_mora = 0
+        self.meses_mora = self._calcular_meses_mora(fecha_det)
        
         self.interes_mora = (
             self.subtotal_con_recargos
@@ -406,7 +405,8 @@ class LiquidacionPeriodo(models.Model):
 # ════════════════════════════════════════════════════════════════════════════
 # PLAN DE PAGO
 # Se confecciona sobre una liquidación conformada.
-# Cuota 1 = anticipo sin interés. Cuotas 2..N llevan interés de financiación.
+# Todas las cuotas se calculan sobre el total de la deuda.
+# La cuota 1 vence al suscribir el plan y no lleva interés.
 # ════════════════════════════════════════════════════════════════════════════
 
 class PlanDePago(models.Model):
@@ -434,23 +434,22 @@ class PlanDePago(models.Model):
         help_text="Snapshot de liquidacion.monto_total al momento de suscribir.",
     )
 
-    # Anticipo (cuota 1): no paga interés
     monto_anticipo = models.DecimalField(
         max_digits=14, decimal_places=2,
-        verbose_name="Anticipo / Cuota 1 ($)",
-        help_text="No paga interés de financiación.",
+        verbose_name="Monto reservado ($)",
+        help_text="Campo legado. Se conserva en cero por compatibilidad.",
     )
 
     cantidad_cuotas = models.PositiveIntegerField(
-        verbose_name="Cantidad de cuotas (sin contar el anticipo)",
-        help_text="Cuotas 2..N, todas con interés de financiación.",
+        verbose_name="Cantidad de cuotas",
+        help_text="Incluye la cuota 1, que vence al suscribir y no lleva interés.",
     )
 
     # Tasa de financiación configurable al momento de suscribir
     tasa_financiacion_mensual = models.DecimalField(
         max_digits=5, decimal_places=4,
         verbose_name="Tasa de financiación mensual (fracción)",
-        help_text="Interés simple. Ej: 0.04 para 4% mensual.",
+        help_text="Interés compuesto. Ej: 0.04 para 4% mensual.",
     )
 
     ESTADO_CHOICES = [
@@ -477,99 +476,49 @@ class PlanDePago(models.Model):
             f"({self.cantidad_cuotas} cuotas) [{self.get_estado_display()}]"
         )
 
-    def generar_cuotas(self):
+    def construir_cuotas(self):
         """
-        Genera las CuotaPlan automáticamente al suscribir el plan.
-
-        ✔ NUEVO MODELO:
-        - Cuota 1 = anticipo sin interés.
-        - Cuotas restantes iguales.
-        - Interés simple TOTAL distribuido en todas las cuotas.
-
-        py MODELO ANTERIOR (comentado abajo):
-        - Cuotas crecientes por interés acumulado en el tiempo.
+        Construye las cuotas del plan sin persistirlas.
+        La cuota 1 vence al suscribir y no lleva interés.
         """
-
-        # Limpiar cuotas previas si se regenera
-        self.cuotas.all().delete()
-
-        saldo = (self.monto_deuda_base - self.monto_anticipo).quantize(Decimal("0.01"))
-        if saldo < 0:
-            saldo = Decimal("0.00")
-
+        deuda_total = self.monto_deuda_base.quantize(Decimal("0.01"))
         tasa_mensual = self.tasa_financiacion_mensual.quantize(Decimal("0.0001"))
+        centavo = Decimal("0.01")
+
+        if self.cantidad_cuotas > 0:
+            capital_base = (deuda_total / self.cantidad_cuotas).quantize(centavo)
+            capitales = [capital_base for _ in range(self.cantidad_cuotas)]
+            diferencia_capital = deuda_total - sum(capitales)
+
+            if diferencia_capital:
+                capitales[-1] = (capitales[-1] + diferencia_capital).quantize(centavo)
+        else:
+            capitales = []
 
         cuotas = []
-
-        # ─────────────────────────────────────────────
-        # CUOTAS IGUALES INTERES SIMPLE
-        # ─────────────────────────────────────────────
-        interes_total = (saldo * tasa_mensual * self.cantidad_cuotas).quantize(Decimal("0.01"))
-        total_financiado = (saldo + interes_total).quantize(Decimal("0.01"))
-
-        cuota_fija = (
-            (total_financiado / self.cantidad_cuotas).quantize(Decimal("0.01"))
-            if self.cantidad_cuotas > 0
-            else total_financiado
-        )
-
-        capital_por_cuota = (
-            (saldo / self.cantidad_cuotas).quantize(Decimal("0.01"))
-            if self.cantidad_cuotas > 0
-            else saldo
-        )
-
-        interes_por_cuota = (
-            (interes_total / self.cantidad_cuotas).quantize(Decimal("0.01"))
-            if self.cantidad_cuotas > 0
-            else Decimal("0.00")
-        )
-
-        # Cuota 1: anticipo sin interés
-        cuotas.append(CuotaPlan(
-            plan=self,
-            nro_cuota=1,
-            monto_capital=self.monto_anticipo,
-            monto_interes=Decimal("0.00"),
-            monto_total=self.monto_anticipo,
-            fecha_vencimiento=self.fecha_suscripcion,
-        ))
-
-        # Cuotas 2..N: todas iguales
-        for i in range(1, self.cantidad_cuotas + 1):
-            fecha_vcto = self.fecha_suscripcion + relativedelta(months=i)
+        for i, capital in enumerate(capitales, start=1):
+            periodo = i - 1
+            fecha_vcto = self.fecha_suscripcion + relativedelta(months=periodo)
+            monto_total = (capital * ((Decimal("1.00") + tasa_mensual) ** periodo)).quantize(centavo)
+            monto_interes = (monto_total - capital).quantize(centavo)
 
             cuotas.append(CuotaPlan(
                 plan=self,
-                nro_cuota=i + 1,
-                monto_capital=capital_por_cuota,
-                monto_interes=interes_por_cuota,
-                monto_total=cuota_fija,
+                nro_cuota=i,
+                monto_capital=capital,
+                monto_interes=monto_interes,
+                monto_total=monto_total,
                 fecha_vencimiento=fecha_vcto,
             ))
+        return cuotas
 
-        # ─────────────────────────────────────────────
-        #  MODELO ANTERIOR (CUOTAS CRECIENTES INTERESES SOBRE SALDOS)
-        # ─────────────────────────────────────────────
-        # monto_cuota_base = (
-        #     saldo / self.cantidad_cuotas
-        #     if self.cantidad_cuotas > 0
-        #     else saldo
-        # )
-        #
-        # for i in range(1, self.cantidad_cuotas + 1):
-        #     fecha_vcto = self.fecha_suscripcion + relativedelta(months=i)
-        #
-        #     interes = monto_cuota_base * i * self.tasa_financiacion_mensual
-        #
-        #     cuotas.append(CuotaPlan(
-        #         plan=self,
-        #         nro_cuota=i + 1,
-        #         monto_capital=monto_cuota_base,
-        #         monto_interes=interes,
-        #         monto_total=monto_cuota_base + interes,
-        #         fecha_vencimiento=fecha_vcto,
-        #     ))
+    def generar_cuotas(self):
+        """
+        Genera y persiste las cuotas del plan.
+        """
+        self.cuotas.all().delete()
+        self.monto_anticipo = Decimal("0.00")
+        cuotas = self.construir_cuotas()
         CuotaPlan.objects.bulk_create(cuotas)
 
 

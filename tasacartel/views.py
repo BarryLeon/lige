@@ -456,30 +456,41 @@ def plan_crear(request, liquidacion_pk):
         messages.warning(request, "Esta liquidación ya tiene un plan de pago.")
         return redirect("tasacartel:liquidacion_detalle", pk=liquidacion_pk)
 
+    vista_previa_cuotas = []
+    total_vista_previa = None
+
     if request.method == "POST":
         form = PlanDePagoForm(request.POST)
         if form.is_valid():
             plan = form.save(commit=False)
-            plan.liquidacion      = liquidacion
+            plan.liquidacion = liquidacion
             plan.monto_deuda_base = liquidacion.monto_total
-            plan.save()
-            plan.generar_cuotas()
+            plan.monto_anticipo = Decimal("0.00")
 
-            liquidacion.estado = "en_plan"
-            liquidacion.save(update_fields=["estado"])
+            vista_previa_cuotas = plan.construir_cuotas()
+            total_vista_previa = sum(c.monto_total for c in vista_previa_cuotas)
 
-            messages.success(request, f"Plan de pago #{plan.id} creado con {plan.cantidad_cuotas + 1} cuotas.")
-            return redirect("tasacartel:plan_detalle", pk=plan.pk)
+            if request.POST.get("accion") == "guardar":
+                plan.save()
+                plan.generar_cuotas()
+                plan.save(update_fields=["monto_anticipo"])
+
+                liquidacion.estado = "en_plan"
+                liquidacion.save(update_fields=["estado"])
+
+                messages.success(request, f"Plan de pago #{plan.id} creado con {plan.cantidad_cuotas} cuotas.")
+                return redirect("tasacartel:plan_detalle", pk=plan.pk)
     else:
         form = PlanDePagoForm(initial={
-            "monto_anticipo":            round(liquidacion.monto_total * Decimal("0.10"), 2),
             "tasa_financiacion_mensual": Decimal("0.04"),
         })
 
     return render(request, "tasacartel/plan_form.html", {
-        "page_title":  "Nuevo plan de pago",
-        "form":        form,
-        "liquidacion": liquidacion,
+        "page_title":         "Nuevo plan de pago",
+        "form":               form,
+        "liquidacion":        liquidacion,
+        "vista_previa_cuotas": vista_previa_cuotas,
+        "total_vista_previa": total_vista_previa,
     })
 
 
@@ -492,7 +503,7 @@ def plan_detalle(request, pk):
         ).prefetch_related("cuotas"),
         pk=pk,
     )
-    total_plan = sum(c.monto_total for c in plan.cuotas.all()) + plan.monto_anticipo
+    total_plan = sum(c.monto_total for c in plan.cuotas.all())
 
     return render(request, "tasacartel/plan_detalle.html", {
         "page_title": f"Plan de pago #{plan.id}",

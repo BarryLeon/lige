@@ -1,14 +1,26 @@
 import math
+import io
+from datetime import datetime
+from unittest.mock import Mock, patch
 
 import numpy as np
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
+from django.utils import timezone
+from PIL import Image as PILImage
 
+from carteles.models import Cartel, Parcela, Persona
 from carteles.servicios.cartel_detector import (
     _diagnosticar_consistencia_superficie,
     _estimar_superficie_por_homografia,
     _normalizar_esquinas_manuales,
     _ordenar_esquinas,
 )
+from carteles.servicios.exportar import (
+    _crear_mapa_ubicacion,
+    _descargar_tile_osm,
+    exportar_pdf_detallado,
+)
+from carteles.views import _aplicar_filtros_informes, _get_carteles_base_queryset
 
 
 class GeometriaCartelDetectorTests(SimpleTestCase):
@@ -73,3 +85,134 @@ class GeometriaCartelDetectorTests(SimpleTestCase):
 
         self.assertTrue(inconsistente)
         self.assertIn("homografía", detalle.lower())
+
+
+class InformesCartelesTests(TestCase):
+    databases = {"default", "carteles"}
+
+    def setUp(self):
+        self.propietario_cartel = Persona.objects.create(
+            tipo="fisica",
+            apellido="Juanez",
+            nombre="Mariana",
+            cuit_dni="20111111111",
+        )
+        self.propietario_terreno = Persona.objects.create(
+            tipo="juridica",
+            razon_social="Terrenos Juan SA",
+            cuit_dni="20999999999",
+        )
+        self.parcela = Parcela.objects.create(
+            circunscripcion="1",
+            seccion="A",
+            parcela_nro="15",
+            direccion="Juan B. Justo 123",
+            propietario_terreno=self.propietario_terreno,
+        )
+        self.cartel_ok = Cartel.objects.create(
+            parcela=self.parcela,
+            propietario_cartel=self.propietario_cartel,
+            tipo_cartel="politico",
+            estado_cartel="bueno",
+            texto_ocr="Juan conduce Mar Chiquita",
+            observaciones="Campaña politica",
+            estado_procesamiento="ok",
+            estado_registro="activo",
+            superficie_m2=12.5,
+            ancho_m=5.0,
+            alto_m=2.5,
+            fecha=timezone.make_aware(datetime(2026, 4, 10, 12, 0)),
+            lat=-37.74,
+            lon=-57.42,
+        )
+        self.cartel_otro = Cartel.objects.create(
+            tipo_cartel="publicitario",
+            estado_cartel="regular",
+            texto_ocr="Oferta verano",
+            estado_procesamiento="ok",
+            estado_registro="activo",
+            fecha=timezone.make_aware(datetime(2026, 4, 11, 12, 0)),
+        )
+        self.cartel_solo_terreno = Cartel.objects.create(
+            parcela=self.parcela,
+            tipo_cartel="informativo",
+            estado_cartel="bueno",
+            texto_ocr="Cartel sin duenio directo",
+            estado_procesamiento="ok",
+            estado_registro="activo",
+            fecha=timezone.make_aware(datetime(2026, 4, 12, 12, 0)),
+        )
+
+    def test_filtros_parciales_por_propietario_unificado(self):
+        qs = _aplicar_filtros_informes(_get_carteles_base_queryset(), {
+            "propietario": "juan",
+            "parcela": "justo",
+            "texto_ocr": "conduce",
+            "fecha_desde": "",
+            "fecha_hasta": "",
+            "tipo_cartel": "politico",
+            "estado_proc": "ok",
+        })
+
+        self.assertQuerySetEqual(qs.order_by("id"), [self.cartel_ok], transform=lambda obj: obj)
+
+    def test_filtro_propietario_encuentra_duenio_de_terreno_sin_duenio_de_cartel(self):
+        qs = _aplicar_filtros_informes(_get_carteles_base_queryset(), {
+            "propietario": "juan",
+            "parcela": "",
+            "texto_ocr": "",
+            "fecha_desde": "",
+            "fecha_hasta": "",
+            "tipo_cartel": "",
+            "estado_proc": "ok",
+        })
+
+        self.assertIn(self.cartel_solo_terreno, qs)
+
+    @patch("carteles.servicios.exportar.requests.get")
+    def test_exportar_pdf_detallado_devuelve_un_pdf(self, mock_get):
+        _descargar_tile_osm.cache_clear()
+        imagen = PILImage.new("RGB", (256, 256), color="white")
+        buffer = io.BytesIO()
+        imagen.save(buffer, format="PNG")
+        contenido_png = buffer.getvalue()
+
+        respuesta = Mock()
+        respuesta.content = contenido_png
+        respuesta.raise_for_status.return_value = None
+        mock_get.return_value = respuesta
+
+        contenido = exportar_pdf_detallado(
+            Cartel.objects.filter(pk=self.cartel_ok.pk),
+            media_root="",
+        )
+
+        self.assertTrue(contenido.startswith(b"%PDF"))
+        self.assertGreater(len(contenido), 500)
+
+    @patch("carteles.servicios.exportar.requests.get")
+    def test_crear_mapa_ubicacion_devuelve_imagen_png(self, mock_get):
+        _descargar_tile_osm.cache_clear()
+        imagen = PILImage.new("RGB", (256, 256), color="white")
+        buffer = io.BytesIO()
+        imagen.save(buffer, format="PNG")
+
+        respuesta = Mock()
+        respuesta.content = buffer.getvalue()
+        respuesta.raise_for_status.return_value = None
+        mock_get.return_value = respuesta
+
+        mapa = _crear_mapa_ubicacion(-37.74, -57.42)
+
+        self.assertIsNotNone(mapa)
+        self.assertTrue(mapa.getvalue().startswith(b"\x89PNG"))
+
+    @patch("carteles.servicios.exportar.requests.get", side_effect=Exception("sin red"))
+    def test_exportar_pdf_detallado_funciona_si_falla_el_mapa(self, _mock_get):
+        _descargar_tile_osm.cache_clear()
+        contenido = exportar_pdf_detallado(
+            Cartel.objects.filter(pk=self.cartel_ok.pk),
+            media_root="",
+        )
+
+        self.assertTrue(contenido.startswith(b"%PDF"))

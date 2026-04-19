@@ -25,9 +25,9 @@ def _get_lector():
     global _lector
     if _lector is None:
         import easyocr
-        # Español + inglés. gpu=False para compatibilidad sin CUDA.
-        # Si tenés GPU podés cambiar a gpu=True para mayor velocidad.
-        _lector = easyocr.Reader(["es", "en"], gpu=True, verbose=False)
+        import torch
+        usa_gpu = torch.cuda.is_available()
+        _lector = easyocr.Reader(["es", "en"], gpu=usa_gpu, verbose=False)
     return _lector
 
 

@@ -1,11 +1,13 @@
 import json
 import os
 import tempfile
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.core.files.base import ContentFile
 from django.core.exceptions import ValidationError
 from django.db.models import Q, Sum, Count
+from django.urls import reverse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -13,7 +15,7 @@ from django.conf import settings
 from django.http import HttpResponse
 
 from .models import Cartel, HistorialPublicidad, Parcela, Persona
-from .servicios.exportar import exportar_excel, exportar_pdf
+from .servicios.exportar import exportar_excel, exportar_pdf, exportar_pdf_detallado
 from .servicios.importar_kobo import importar_kobo
 from .servicios.kobo_delete import borrar_submission_kobo
 
@@ -129,6 +131,106 @@ def _reprocesar_cartel(cartel):
         cartel.distancia,
         esquinas_manuales=cartel.manual_esquinas,
     )
+
+
+def _get_carteles_base_queryset():
+    return Cartel.objects.filter(estado_registro="activo").select_related(
+        "parcela", "propietario_cartel", "parcela__propietario_terreno"
+    ).prefetch_related("historial_publicidad", "historial_publicidad__empresa")
+
+
+def _obtener_filtros_informes(data):
+    return {
+        "propietario": data.get("propietario", "").strip(),
+        "parcela": data.get("parcela", "").strip(),
+        "texto_ocr": data.get("texto_ocr", "").strip(),
+        "fecha_desde": data.get("fecha_desde", ""),
+        "fecha_hasta": data.get("fecha_hasta", ""),
+        "tipo_cartel": data.get("tipo_cartel", ""),
+        "estado_proc": data.get("estado_proc", ""),
+    }
+
+
+def _aplicar_filtros_informes(qs, filtros):
+    propietario = filtros["propietario"]
+    parcela = filtros["parcela"]
+    texto_ocr = filtros["texto_ocr"]
+    fecha_desde = filtros["fecha_desde"]
+    fecha_hasta = filtros["fecha_hasta"]
+    tipo_cartel = filtros["tipo_cartel"]
+    estado_proc = filtros["estado_proc"]
+
+    if propietario:
+        personas_ids = Persona.objects.filter(
+            Q(apellido__icontains=propietario)
+            | Q(nombre__icontains=propietario)
+            | Q(razon_social__icontains=propietario)
+            | Q(cuit_dni__icontains=propietario)
+        ).values("id")
+
+        qs = qs.filter(
+            Q(propietario_cartel_id__in=personas_ids)
+            | Q(parcela__propietario_terreno_id__in=personas_ids)
+        )
+
+    if parcela:
+        qs = qs.filter(
+            Q(parcela__circunscripcion__icontains=parcela)
+            | Q(parcela__seccion__icontains=parcela)
+            | Q(parcela__chacra__icontains=parcela)
+            | Q(parcela__parcela_nro__icontains=parcela)
+            | Q(parcela__direccion__icontains=parcela)
+            | Q(parcela__localidad__icontains=parcela)
+        )
+
+    if texto_ocr:
+        qs = qs.filter(Q(texto_ocr__icontains=texto_ocr) | Q(observaciones__icontains=texto_ocr))
+
+    if fecha_desde:
+        qs = qs.filter(fecha__date__gte=fecha_desde)
+    if fecha_hasta:
+        qs = qs.filter(fecha__date__lte=fecha_hasta)
+    if tipo_cartel:
+        qs = qs.filter(tipo_cartel=tipo_cartel)
+    if estado_proc:
+        qs = qs.filter(estado_procesamiento=estado_proc)
+
+    return qs.distinct()
+
+
+def _build_querystring_filtros(filtros):
+    return urlencode({clave: valor for clave, valor in filtros.items() if valor})
+
+
+def _redirect_informes_con_filtros(request, filtros, nivel, mensaje):
+    getattr(messages, nivel)(request, mensaje)
+    url = reverse("carteles_informes")
+    query = _build_querystring_filtros(filtros)
+    if query:
+        url = f"{url}?{query}"
+    return redirect(url)
+
+
+def _resolver_queryset_exportacion(request):
+    filtros = _obtener_filtros_informes(request.POST if request.method == "POST" else request.GET)
+    qs = _aplicar_filtros_informes(_get_carteles_base_queryset(), filtros)
+
+    if request.method != "POST":
+        return qs, filtros, None
+
+    alcance = request.POST.get("alcance_pdf", "filtrados")
+    cartel_ids = request.POST.getlist("cartel_ids")
+    if alcance == "seleccionados":
+        if not cartel_ids:
+            return None, filtros, _redirect_informes_con_filtros(
+                request,
+                filtros,
+                "warning",
+                "Seleccioná al menos un cartel para generar el PDF de la selección.",
+            )
+        qs = qs.filter(id__in=cartel_ids)
+
+    return qs.distinct(), filtros, None
 
 
 # ── Lista de carteles ────────────────────────────────────────────────────────
@@ -453,37 +555,8 @@ def informes(request):
     """
     Vista principal de informes con búsqueda y estadísticas.
     """
-    qs = Cartel.objects.filter(estado_registro="activo").select_related(
-        "parcela", "propietario_cartel", "parcela__propietario_terreno"
-    ).prefetch_related("historial_publicidad")
-
-    # ── Búsqueda ─────────────────────────────────────────────────────────────
-    q           = request.GET.get("q", "").strip()
-    fecha_desde = request.GET.get("fecha_desde", "")
-    fecha_hasta = request.GET.get("fecha_hasta", "")
-    tipo_cartel = request.GET.get("tipo_cartel", "")
-    estado_proc = request.GET.get("estado_proc", "")
-
-    if q:
-        qs = qs.filter(
-            Q(texto_ocr__icontains=q)         |
-            Q(observaciones__icontains=q)      |
-            Q(operador__icontains=q)           |
-            Q(kobo_id__icontains=q)            |
-            Q(propietario_cartel__apellido__icontains=q)    |
-            Q(propietario_cartel__razon_social__icontains=q)|
-            Q(parcela__direccion__icontains=q) |
-            Q(historial_publicidad__empresa__icontains=q)
-        ).distinct()
-
-    if fecha_desde:
-        qs = qs.filter(fecha__date__gte=fecha_desde)
-    if fecha_hasta:
-        qs = qs.filter(fecha__date__lte=fecha_hasta)
-    if tipo_cartel:
-        qs = qs.filter(tipo_cartel=tipo_cartel)
-    if estado_proc:
-        qs = qs.filter(estado_procesamiento=estado_proc)
+    filtros = _obtener_filtros_informes(request.GET)
+    qs = _aplicar_filtros_informes(_get_carteles_base_queryset(), filtros)
 
     # ── Estadísticas generales ───────────────────────────────────────────────
     base = Cartel.objects.filter(estado_registro="activo", estado_procesamiento="ok")
@@ -510,11 +583,7 @@ def informes(request):
     return render(request, "carteles/informes.html", {
         "carteles":   qs,
         "stats":      stats,
-        "q":          q,
-        "fecha_desde": fecha_desde,
-        "fecha_hasta": fecha_hasta,
-        "tipo_cartel": tipo_cartel,
-        "estado_proc": estado_proc,
+        **filtros,
         "tipo_choices": Cartel.TIPO_CARTEL_CHOICES,
     })
 
@@ -661,37 +730,8 @@ def editar_parcela(request, pk):
 
 def _get_queryset_filtrado(request):
     """Reutiliza los mismos filtros que la vista de informes."""
-    qs = Cartel.objects.filter(estado_registro="activo").select_related(
-        "parcela", "propietario_cartel", "parcela__propietario_terreno"
-    ).prefetch_related("historial_publicidad")
-
-    q           = request.GET.get("q", "").strip()
-    fecha_desde = request.GET.get("fecha_desde", "")
-    fecha_hasta = request.GET.get("fecha_hasta", "")
-    tipo_cartel = request.GET.get("tipo_cartel", "")
-    estado_proc = request.GET.get("estado_proc", "")
-
-    if q:
-        from django.db.models import Q
-        qs = qs.filter(
-            Q(texto_ocr__icontains=q)          |
-            Q(observaciones__icontains=q)       |
-            Q(operador__icontains=q)            |
-            Q(kobo_id__icontains=q)             |
-            Q(propietario_cartel__apellido__icontains=q)     |
-            Q(propietario_cartel__razon_social__icontains=q) |
-            Q(parcela__direccion__icontains=q)  |
-            Q(historial_publicidad__empresa__icontains=q)
-        ).distinct()
-    if fecha_desde:
-        qs = qs.filter(fecha__date__gte=fecha_desde)
-    if fecha_hasta:
-        qs = qs.filter(fecha__date__lte=fecha_hasta)
-    if tipo_cartel:
-        qs = qs.filter(tipo_cartel=tipo_cartel)
-    if estado_proc:
-        qs = qs.filter(estado_procesamiento=estado_proc)
-    return qs
+    filtros = _obtener_filtros_informes(request.GET)
+    return _aplicar_filtros_informes(_get_carteles_base_queryset(), filtros)
 
 
 def exportar_excel_view(request):
@@ -708,10 +748,26 @@ def exportar_excel_view(request):
 
 
 def exportar_pdf_view(request):
-    qs = _get_queryset_filtrado(request)
+    qs, _, redirect_response = _resolver_queryset_exportacion(request)
+    if redirect_response:
+        return redirect_response
     from datetime import datetime
     nombre = f"carteles_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
     contenido = exportar_pdf(qs, settings.MEDIA_ROOT)
+    response = HttpResponse(contenido, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{nombre}"'
+    return response
+
+
+def exportar_pdf_detalle_view(request):
+    qs, _, redirect_response = _resolver_queryset_exportacion(request)
+    if redirect_response:
+        return redirect_response
+
+    from datetime import datetime
+
+    nombre = f"carteles_detalle_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    contenido = exportar_pdf_detallado(qs, settings.MEDIA_ROOT)
     response = HttpResponse(contenido, content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="{nombre}"'
     return response

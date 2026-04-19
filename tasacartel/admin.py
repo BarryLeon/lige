@@ -154,7 +154,7 @@ class LiquidacionAdmin(admin.ModelAdmin):
 class PlanDePagoAdmin(admin.ModelAdmin):
     list_display = [
         "id", "liquidacion", "fecha_suscripcion",
-        "monto_deuda_base", "monto_anticipo", "cantidad_cuotas",
+        "monto_deuda_base", "cantidad_cuotas",
         "tasa_financiacion_mensual", "estado",
     ]
     list_filter   = ["estado"]

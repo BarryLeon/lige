@@ -20,6 +20,7 @@ urlpatterns = [
     path("informes/", views.informes, name="carteles_informes"),
     path("informes/excel/", views.exportar_excel_view, name="carteles_exportar_excel"),
     path("informes/pdf/",   views.exportar_pdf_view,   name="carteles_exportar_pdf"),
+    path("informes/pdf/detalle/", views.exportar_pdf_detalle_view, name="carteles_exportar_pdf_detalle"),
 
     # ── Personas ──────────────────────────────────────────────────────────────
     path("personas/", views.lista_personas, name="carteles_personas_lista"),

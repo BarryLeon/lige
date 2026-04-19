@@ -22,25 +22,19 @@
 
   {# Resumen del plan #}
   <div class="row g-3 mb-4">
-    <div class="col-md-3">
+    <div class="col-md-4">
       <div class="card bg-dark text-white border-secondary text-center p-3">
         <div class="small text-white mb-1">Deuda base del plan</div>
         <div class="fs-5 fw-bold">${{ plan.monto_deuda_base|floatformat:2 }}</div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="card bg-dark text-white border-secondary text-center p-3">
-        <div class="small text-white mb-1">Anticipo (cuota 1)</div>
-        <div class="fs-5 fw-bold">${{ plan.monto_anticipo|floatformat:2 }}</div>
-      </div>
-    </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
       <div class="card bg-dark text-white border-secondary text-center p-3">
         <div class="small text-white mb-1">Cuotas</div>
-        <div class="fs-5 fw-bold">{{ plan.cantidad_cuotas }} + anticipo</div>
+        <div class="fs-5 fw-bold">{{ plan.cantidad_cuotas }}</div>
       </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
       <div class="card bg-dark text-white border-secondary text-center p-3">
         <div class="small text-white mb-1">Estado</div>
         <span class="badge fs-6
@@ -79,7 +73,7 @@
             <td>
               {{ cuota.nro_cuota }}
               {% if cuota.nro_cuota == 1 %}
-                <span class="badge bg-secondary ms-1">anticipo</span>
+                <span class="badge bg-secondary ms-1">sin interés</span>
               {% endif %}
             </td>
             <td>${{ cuota.monto_capital|floatformat:2 }}</td>
@@ -118,7 +112,7 @@
             <td colspan="3" class="text-end"><strong>Total del plan:</strong></td>
             <td colspan="5">
               <strong>
-               {{ total_plan}}
+                ${{ total_plan|floatformat:2 }}
               </strong>
             </td>
           </tr>

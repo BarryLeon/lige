@@ -93,9 +93,6 @@ LiquidacionPeriodoFormSet = inlineformset_factory(
 # ════════════════════════════════════════════════════════════════════════════
 
 class PlanDePagoForm(forms.ModelForm):
-    monto_anticipo = forms.CharField(
-        widget=forms.TextInput(attrs={"class": "form-control", "inputmode": "decimal"})
-    )
     tasa_financiacion_mensual = forms.CharField(
         widget=forms.TextInput(attrs={"class": "form-control", "inputmode": "decimal"})
     )
@@ -112,9 +109,6 @@ class PlanDePagoForm(forms.ModelForm):
         except InvalidOperation:
             raise forms.ValidationError("Ingresá un número válido.")
 
-    def clean_monto_anticipo(self):
-        return self._normalizar_decimal(self.cleaned_data.get("monto_anticipo"))
-
     def clean_tasa_financiacion_mensual(self):
         tasa = self._normalizar_decimal(self.cleaned_data.get("tasa_financiacion_mensual"))
         if tasa in (None, ""):
@@ -124,7 +118,6 @@ class PlanDePagoForm(forms.ModelForm):
     class Meta:
         model  = PlanDePago
         fields = [
-            "monto_anticipo",
             "cantidad_cuotas",
             "tasa_financiacion_mensual",
             "observaciones",

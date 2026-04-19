@@ -1,3 +1,4 @@
+import datetime
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -149,22 +150,21 @@ class PlanDePagoTests(TestCase):
 
     def test_form_acepta_tasa_con_coma_y_la_normaliza(self):
         form = PlanDePagoForm(data={
-            "monto_anticipo": "1000,50",
-            "cantidad_cuotas": 3,
+            "cantidad_cuotas": 4,
             "tasa_financiacion_mensual": "0,01",
             "observaciones": "",
         })
 
         self.assertTrue(form.is_valid(), form.errors)
-        self.assertEqual(form.cleaned_data["monto_anticipo"], Decimal("1000.50"))
+        self.assertEqual(form.cleaned_data["cantidad_cuotas"], 4)
         self.assertEqual(form.cleaned_data["tasa_financiacion_mensual"], Decimal("0.0100"))
 
     def test_generar_cuotas_usa_tasa_exacta_normalizada(self):
         plan = PlanDePago(
             liquidacion=self.liquidacion,
             monto_deuda_base=Decimal("10000.00"),
-            monto_anticipo=Decimal("1000.00"),
-            cantidad_cuotas=3,
+            monto_anticipo=Decimal("0.00"),
+            cantidad_cuotas=4,
             tasa_financiacion_mensual=Decimal("0.0100"),
         )
         plan.save()
@@ -174,4 +174,87 @@ class PlanDePagoTests(TestCase):
         cuotas = list(plan.cuotas.order_by("nro_cuota"))
         self.assertEqual(len(cuotas), 4)
         self.assertEqual(cuotas[0].monto_interes, Decimal("0.00"))
-        self.assertEqual(cuotas[1].monto_interes, Decimal("90.00"))
+        self.assertEqual(cuotas[0].monto_capital, Decimal("2500.00"))
+        self.assertEqual(cuotas[0].monto_total, Decimal("2500.00"))
+        self.assertEqual(cuotas[1].monto_interes, Decimal("25.00"))
+        self.assertEqual(cuotas[1].monto_total, Decimal("2525.00"))
+        self.assertEqual(cuotas[2].monto_interes, Decimal("50.25"))
+        self.assertEqual(cuotas[2].monto_total, Decimal("2550.25"))
+        self.assertEqual(cuotas[3].monto_interes, Decimal("75.75"))
+        self.assertEqual(cuotas[3].monto_total, Decimal("2575.75"))
+
+
+class LiquidacionPeriodoTests(TestCase):
+    databases = {"carteles"}
+
+    def setUp(self):
+        self.propietario_cartel = Persona.objects.create(
+            tipo="fisica",
+            apellido="Suarez",
+            nombre="Claudia",
+            cuit_dni="20123456789",
+        )
+        self.propietario_terreno = Persona.objects.create(
+            tipo="fisica",
+            apellido="Mendez",
+            nombre="Raul",
+            cuit_dni="20987654321",
+        )
+        self.parcela = Parcela.objects.create(
+            circunscripcion="III",
+            seccion="C",
+            parcela_nro="789",
+            propietario_terreno=self.propietario_terreno,
+        )
+        self.cartel = Cartel.objects.create(
+            parcela=self.parcela,
+            propietario_cartel=self.propietario_cartel,
+            kobo_id="kobo-test-mora-1",
+            estado_procesamiento="ok",
+            estado_registro="activo",
+            superficie_m2=10,
+        )
+        self.valor_tasa = ValorTasaAnual.objects.create(
+            anio=2024,
+            valor_m2=Decimal("1000.00"),
+        )
+
+    def test_calcular_meses_mora_acumula_anios_previos_completos(self):
+        liquidacion = Liquidacion.objects.create(
+            cartel=self.cartel,
+            propietario_cartel=self.propietario_cartel,
+            propietario_terreno=self.propietario_terreno,
+            superficie_m2=Decimal("10.0000"),
+            fecha_determinacion=datetime.date(2026, 4, 10),
+        )
+
+        periodo_actual = LiquidacionPeriodo(
+            liquidacion=liquidacion,
+            valor_tasa=self.valor_tasa,
+            anio_fiscal=2026,
+            valor_m2_aplicado=Decimal("1000.00"),
+            tasa_mora_mensual=Decimal("0.0400"),
+        )
+        periodo_actual.calcular()
+
+        periodo_anterior = LiquidacionPeriodo(
+            liquidacion=liquidacion,
+            valor_tasa=self.valor_tasa,
+            anio_fiscal=2025,
+            valor_m2_aplicado=Decimal("1000.00"),
+            tasa_mora_mensual=Decimal("0.0400"),
+        )
+        periodo_anterior.calcular()
+
+        periodo_dos_anios = LiquidacionPeriodo(
+            liquidacion=liquidacion,
+            valor_tasa=self.valor_tasa,
+            anio_fiscal=2024,
+            valor_m2_aplicado=Decimal("1000.00"),
+            tasa_mora_mensual=Decimal("0.0400"),
+        )
+        periodo_dos_anios.calcular()
+
+        self.assertEqual(periodo_actual.meses_mora, 4)
+        self.assertEqual(periodo_anterior.meses_mora, 16)
+        self.assertEqual(periodo_dos_anios.meses_mora, 28)
