@@ -1,0 +1,7 @@
+# Regenerar
+python manage.py makemigrations
+
+# Migrar cada base
+python manage.py migrate --database=default
+python manage.py migrate --database=marchiquita
+python manage.py migrate --database=carteles
