@@ -11,7 +11,15 @@ from .models import (
     Deuda,
     Cuota,
 )
-
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from .models import Liquidacion
+from django.db.models import Max
+from django.db.models import Count
 
 # ──────────────────────────────────────────────────────────────────
 # HELPERS
@@ -659,7 +667,6 @@ def totales_generales() -> dict:
     - Total cobrado: suma acumulada de pagos + anticipos + cuotas de todos los períodos
     - Con plan / canceladas: basado en la deuda más reciente de cada parcela
     """
-    from django.db.models import Max
 
     if not ArchivoImportacion.objects.filter(procesado=True, revertido=False).exists():
         return {
@@ -819,16 +826,6 @@ def revertir_procesamiento(archivo_id: int) -> dict:
 # ──────────────────────────────────────────────────────────────────
 # LIQUIDACIÓN
 # ──────────────────────────────────────────────────────────────────
-
-from io import BytesIO
-from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from .models import Liquidacion
-
-
 @transaction.atomic
 def generar_liquidacion(archivo_id: int, usuario=None) -> Liquidacion:
     """
@@ -919,7 +916,6 @@ def generar_liquidacion(archivo_id: int, usuario=None) -> Liquidacion:
         pdf=pdf_bytes,
         generada_por=usuario,
     )
-
     return liquidacion
 
 
@@ -1091,7 +1087,6 @@ def estadisticas() -> dict:
     - Regulares vs irregulares
     - Deudores con 3+ períodos sin pagar desde que están en plan
     """
-    from django.db.models import Count
 
     todas_deudas = Deuda.objects.filter(
         importacion__procesado=True,

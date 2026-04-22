@@ -1,0 +1,87 @@
+{% extends "layout_interno.html" %}
+{% load static %}
+
+{% block contenido_panel %}
+<div class="container-fluid px-4 py-3" style="max-width: 1200px;">
+
+  <div class="mb-4">
+    <a href="{% url 'cobros_publivial:cartel_honorarios' %}" class="text-secondary text-decoration-none small">
+      ← Volver a honorarios
+    </a>
+    <h2 class="fw-bold text-white mb-0 mt-1">Tasa Cartel — Liquidaciones contado sin honorario</h2>
+    <p class="text-secondary mb-0 mt-1 small">
+      Liquidaciones pagadas de contado (sin plan de pago) para las cuales aún no se generó honorario.
+    </p>
+  </div>
+
+  {% for msg in messages %}
+  <div class="alert alert-{{ msg.tags }} alert-dismissible fade show" role="alert">
+    {{ msg }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+
+  {% if liquidaciones %}
+  <div class="card border-0" style="background: rgba(255,255,255,0.06);">
+    <div class="table-responsive">
+      <table class="table table-dark table-hover mb-0" style="background: transparent;">
+        <thead>
+          <tr style="border-color: rgba(255,255,255,0.1);">
+            <th class="text-secondary fw-normal">N° Liq.</th>
+            <th class="text-secondary fw-normal">Cartel</th>
+            <th class="text-secondary fw-normal">Propietario</th>
+            <th class="text-secondary fw-normal">Fecha determinación</th>
+            <th class="text-secondary fw-normal">Monto total</th>
+            <th class="text-secondary fw-normal">Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for liq in liquidaciones %}
+          <tr style="border-color: rgba(255,255,255,0.07);">
+            <td class="text-white">#{{ liq.pk }}</td>
+            <td class="text-secondary">{{ liq.cartel }}</td>
+            <td class="text-secondary">
+              {{ liq.propietario_cartel|default:"—" }}
+            </td>
+            <td class="text-secondary">{{ liq.fecha_determinacion|date:"d/m/Y" }}</td>
+            <td class="text-white fw-semibold">$ {{ liq.monto_total|floatformat:2 }}</td>
+            <td>
+              <span class="badge bg-success">Pagada</span>
+            </td>
+            <td>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="liquidacion_id" value="{{ liq.pk }}">
+                <div class="d-flex align-items-center gap-2 justify-content-end flex-wrap">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    name="porcentaje"
+                    class="form-control form-control-sm"
+                    placeholder="% honorario"
+                    style="width: 120px; background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); color: #fff;"
+                    required>
+                  <button type="submit" class="btn btn-outline-light btn-sm"
+                          onclick="return confirm('¿Generar honorario para la liquidación #{{ liq.pk }}?')">
+                    Generar honorario
+                  </button>
+                </div>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="card border-0 text-center py-5" style="background: rgba(255,255,255,0.06);">
+    <p class="text-secondary mb-0">No hay liquidaciones de contado pendientes de generar honorario.</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock contenido_panel %}

@@ -1,0 +1,161 @@
+{% extends "layout_interno.html" %}
+{% load static %}
+
+{% block contenido_detalle %}
+<div class="container-fluid px-4 py-3" style="max-width: 900px;">
+
+  <div class="mb-4">
+    <a href="{% url 'cobros_publivial:facturas_lista' %}" class="text-secondary text-decoration-none small">
+      ← Volver a facturas
+    </a>
+    <div class="d-flex align-items-center justify-content-between mt-1">
+      <h2 class="fw-bold text-white mb-0">Factura {{ factura.numero }}</h2>
+      <div>
+        {% if factura.estado == 'PRESENTADA' %}
+          <span class="badge bg-warning text-dark fs-6">Presentada</span>
+        {% elif factura.estado == 'COBRADA' %}
+          <span class="badge bg-success fs-6">Cobrada</span>
+        {% elif factura.estado == 'RECHAZADA' %}
+          <span class="badge bg-danger fs-6">Rechazada</span>
+        {% else %}
+          <span class="badge bg-secondary fs-6">Anulada</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% for msg in messages %}
+  <div class="alert alert-{{ msg.tags }} alert-dismissible fade show" role="alert">
+    {{ msg }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+
+  {# ── Datos de la factura ── #}
+  <div class="card border-0 mb-4" style="background: rgba(255,255,255,0.06);">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-6 col-md-3">
+          <p class="text-secondary mb-1 small">App origen</p>
+          <p class="text-white mb-0">
+            {% if factura.app_origen == 'tasacartel' %}Tasa Cartel{% else %}Mar Chiquita{% endif %}
+          </p>
+        </div>
+        <div class="col-6 col-md-3">
+          <p class="text-secondary mb-1 small">Fecha emisión</p>
+          <p class="text-white mb-0">{{ factura.fecha_emision|date:"d/m/Y" }}</p>
+        </div>
+        <div class="col-6 col-md-3">
+          <p class="text-secondary mb-1 small">Fecha cobro</p>
+          <p class="text-white mb-0">{{ factura.fecha_cobro|date:"d/m/Y"|default:"—" }}</p>
+        </div>
+        <div class="col-6 col-md-3">
+          <p class="text-secondary mb-1 small">Monto total</p>
+          <p class="text-white fw-bold mb-0 fs-5">$ {{ factura.monto_total|floatformat:2 }}</p>
+        </div>
+        {% if factura.observaciones %}
+        <div class="col-12">
+          <p class="text-secondary mb-1 small">Observaciones</p>
+          <p class="text-white mb-0">{{ factura.observaciones }}</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ── Items ── #}
+  <h5 class="text-white mb-3">Detalle de honorarios incluidos</h5>
+  <div class="card border-0 mb-4" style="background: rgba(255,255,255,0.06);">
+    <div class="table-responsive">
+      <table class="table table-dark mb-0" style="background: transparent;">
+        <thead>
+          <tr style="border-color: rgba(255,255,255,0.1);">
+            <th class="text-secondary fw-normal">Período</th>
+            <th class="text-secondary fw-normal">Tipo</th>
+            <th class="text-secondary fw-normal">
+              {% if factura.app_origen == 'tasas_marchiquita' %}Liquidación{% else %}Base cálculo{% endif %}
+            </th>
+            <th class="text-secondary fw-normal">
+              {% if factura.app_origen == 'tasas_marchiquita' %}Referencia{% else %}%{% endif %}
+            </th>
+            <th class="text-secondary fw-normal">
+              {% if factura.app_origen == 'tasas_marchiquita' %}Importe facturado{% else %}Honorario{% endif %}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr style="border-color: rgba(255,255,255,0.07);">
+            <td class="text-white">{{ item.honorario.periodo|date:"m/Y" }}</td>
+            <td class="text-secondary">{{ item.honorario.get_tipo_origen_display }}</td>
+            <td class="text-secondary">$ {{ item.honorario.base_calculo|floatformat:2 }}</td>
+            <td class="text-secondary">
+              {% if factura.app_origen == 'tasas_marchiquita' %}
+                Liquidación #{{ item.honorario.liquidacion_marchiquita_id }}
+              {% else %}
+                {{ item.honorario.porcentaje_aplicado }}%
+              {% endif %}
+            </td>
+            <td class="text-white">$ {{ item.monto|floatformat:2 }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="text-secondary text-center py-3">Sin items.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr style="border-color: rgba(255,255,255,0.15);">
+            <td colspan="4" class="text-secondary text-end fw-semibold">Total</td>
+            <td class="text-white fw-bold">$ {{ factura.monto_total|floatformat:2 }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  {# ── Acciones ── #}
+  {% if factura.estado == 'PRESENTADA' %}
+  <div class="d-flex gap-3 flex-wrap">
+
+    <form method="post" action="{% url 'cobros_publivial:factura_cobrada' factura.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-success"
+              onclick="return confirm('¿Marcás la factura {{ factura.numero }} como cobrada?')">
+        Marcar como cobrada
+      </button>
+    </form>
+
+    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalAnular">
+      Anular factura
+    </button>
+
+  </div>
+
+  {# Modal anulación #}
+  <div class="modal fade" id="modalAnular" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content" style="background: #1a2a35; border-color: rgba(255,255,255,0.1);">
+        <div class="modal-header border-0">
+          <h5 class="modal-title text-white">Anular factura {{ factura.numero }}</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <form method="post" action="{% url 'cobros_publivial:factura_anular' factura.pk %}">
+          {% csrf_token %}
+          <div class="modal-body">
+            <label class="text-secondary small mb-1 d-block">Motivo de anulación (opcional)</label>
+            <textarea name="observacion" rows="3" class="form-control"
+                      style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); color: #fff;"></textarea>
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-danger">Confirmar anulación</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock contenido_detalle %}

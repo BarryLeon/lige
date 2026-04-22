@@ -18,7 +18,7 @@ import environ
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env()
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+environ.Env.read_env(os.path.join(BASE_DIR,env.str("ENV_FILE", ".env")))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -47,8 +47,7 @@ INSTALLED_APPS = [
     'tasas_marchiquita.apps.TasasMarchiquitaConfig',
     'carteles.apps.CartelesConfig',
     'tasacartel.apps.TasacartelConfig',
-
-
+    'cobros_publivial.apps.CobrosPublivialConfig',
 ]
 
 MIDDLEWARE = [
@@ -105,6 +104,9 @@ DATABASES = {
  
     # Cliente Carteles (apps carteles + tasacartel)
     "carteles": env.db("DATABASE_CARTELES_URL"),
+
+    # cliente Cobros Publivial (app cobros_publivial)
+    "cobros_publivial": env.db("DATABASE_COBROS_PUBLIVIAL_URL"),
 }
  
 # 2. Agregá el router (después de DATABASES):

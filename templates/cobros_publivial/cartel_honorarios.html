@@ -1,0 +1,149 @@
+{% extends "layout_interno.html" %}
+{% load static %}
+
+{% block contenido_panel %}
+<div class="container-fluid px-4 py-3" style="max-width: 1200px;">
+
+  <div class="mb-4">
+    <a href="{% url 'cobros_publivial:dashboard' %}" class="text-secondary text-decoration-none small">
+      ← Volver al dashboard
+    </a>
+    <div class="d-flex align-items-center justify-content-between mt-1 flex-wrap gap-2">
+      <h2 class="fw-bold text-white mb-0">Tasa Cartel — Honorarios para facturar</h2>
+      <div class="d-flex gap-2">
+        <a href="{% url 'cobros_publivial:cartel_contado' %}" class="btn btn-outline-light btn-sm">
+          Contado sin honorario
+        </a>
+        <a href="{% url 'cobros_publivial:cartel_cuotas' %}" class="btn btn-outline-light btn-sm">
+          Cuotas sin honorario
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {% for msg in messages %}
+  <div class="alert alert-{{ msg.tags }} alert-dismissible fade show" role="alert">
+    {{ msg }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+
+  {% if honorarios %}
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="card border-0 mb-3" style="background: rgba(255,255,255,0.06);">
+      <div class="table-responsive">
+        <table class="table table-dark table-hover mb-0" style="background: transparent;">
+          <thead>
+            <tr style="border-color: rgba(255,255,255,0.1);">
+              <th style="width: 40px;">
+                <input type="checkbox" id="selectAll" class="form-check-input">
+              </th>
+              <th class="text-secondary fw-normal">Período</th>
+              <th class="text-secondary fw-normal">Tipo</th>
+              <th class="text-secondary fw-normal">Liquidación origen</th>
+              <th class="text-secondary fw-normal">Base cálculo</th>
+              <th class="text-secondary fw-normal">%</th>
+              <th class="text-secondary fw-normal">Honorario</th>
+              <th class="text-secondary fw-normal">Generado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h in honorarios %}
+            <tr style="border-color: rgba(255,255,255,0.07);">
+              <td>
+                <input type="checkbox" name="honorarios_ids" value="{{ h.pk }}"
+                       class="form-check-input honorario-check"
+                       data-monto="{{ h.monto_honorario }}">
+              </td>
+              <td class="text-white">{{ h.periodo|date:"m/Y" }}</td>
+              <td>
+                {% if h.tipo_origen == 'CONTADO' %}
+                  <span class="badge" style="background: rgba(13,202,240,0.2); color: #0dcaf0;">Contado</span>
+                {% else %}
+                  <span class="badge" style="background: rgba(255,193,7,0.2); color: #ffc107;">Cuotas</span>
+                {% endif %}
+              </td>
+              <td class="text-secondary">
+                {% if h.liquidacion_tasacartel_id %}#{{ h.liquidacion_tasacartel_id }}{% else %}—{% endif %}
+              </td>
+              <td class="text-secondary">$ {{ h.base_calculo|floatformat:2 }}</td>
+              <td class="text-secondary">{{ h.porcentaje_aplicado }}%</td>
+              <td class="text-white fw-semibold">$ {{ h.monto_honorario|floatformat:2 }}</td>
+              <td class="text-secondary">{{ h.generado_en|date:"d/m/Y" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# ── Cargar factura ── #}
+    <div class="card border-0 p-3 d-flex flex-row align-items-end gap-3 flex-wrap"
+         style="background: rgba(255,255,255,0.06);">
+      <div>
+        <label class="text-secondary small mb-1 d-block">N° de factura</label>
+        <input type="text" name="numero_factura"
+               class="form-control form-control-sm"
+               placeholder="Ej: A-0001-00001234"
+               style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); color: #fff; min-width: 220px;"
+               required>
+      </div>
+      <div>
+        <label class="text-secondary small mb-1 d-block">Fecha de emisión</label>
+        <input type="date" name="fecha_emision"
+               value="{{ today|date:'Y-m-d' }}"
+               class="form-control form-control-sm"
+               style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); color: #fff; min-width: 160px;"
+               required>
+      </div>
+      <div>
+        <p class="text-secondary small mb-1">Seleccionados: <span id="contador">0</span></p>
+        <p class="text-secondary small mb-0">Total: $ <span id="totalSeleccionado">0.00</span></p>
+      </div>
+      <button type="submit" class="btn btn-success" id="btnFacturar" disabled>
+        Cargar factura
+      </button>
+    </div>
+  </form>
+
+  {% else %}
+  <div class="card border-0 text-center py-5" style="background: rgba(255,255,255,0.06);">
+    <p class="text-secondary mb-0">No hay honorarios de Tasa Cartel pendientes de facturación.</p>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+const selectAll   = document.getElementById('selectAll');
+const checks      = document.querySelectorAll('.honorario-check');
+const contador    = document.getElementById('contador');
+const totalSpan   = document.getElementById('totalSeleccionado');
+const btnFacturar = document.getElementById('btnFacturar');
+
+function actualizarResumen() {
+  let total = 0;
+  let count = 0;
+  checks.forEach(c => {
+    if (c.checked) {
+      total += parseFloat((c.dataset.monto || '0').replace(',', '.')) || 0;
+      count++;
+    }
+  });
+  contador.textContent = count;
+  totalSpan.textContent = total.toLocaleString('es-AR', {minimumFractionDigits: 2});
+  if (btnFacturar) btnFacturar.disabled = count === 0;
+}
+
+if (selectAll) {
+  selectAll.addEventListener('change', () => {
+    checks.forEach(c => c.checked = selectAll.checked);
+    actualizarResumen();
+  });
+}
+
+checks.forEach(c => c.addEventListener('change', actualizarResumen));
+</script>
+{% endblock contenido_panel %}

@@ -2,6 +2,7 @@
 
 MARCHIQUITA_APPS = {"tasas_marchiquita"}
 CARTELES_APPS    = {"carteles", "tasacartel"}
+COBROS_PUBLIVIAL_APPS = {"cobros_publivial"}
 
 
 class ClientesRouter:
@@ -11,6 +12,8 @@ class ClientesRouter:
             return "marchiquita"
         if app_label in CARTELES_APPS:
             return "carteles"
+        if app_label in COBROS_PUBLIVIAL_APPS:
+            return "cobros_publivial"
         return "default"
 
     def db_for_read(self, model, **hints):

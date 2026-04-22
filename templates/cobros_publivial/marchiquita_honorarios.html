@@ -1,0 +1,147 @@
+{% extends "layout_interno.html" %}
+{% load static %}
+
+{% block contenido_panel %}
+<div class="container-fluid px-4 py-3" style="max-width: 1200px;">
+
+  <div class="mb-4">
+    <a href="{% url 'cobros_publivial:dashboard' %}" class="text-secondary text-decoration-none small">
+      ← Volver al dashboard
+    </a>
+    <h2 class="fw-bold text-white mb-0 mt-1">Mar Chiquita — Facturación de liquidaciones</h2>
+    <p class="text-secondary mb-0 mt-1 small">
+      La liquidación de `tasas_marchiquita` ya trae la comisión a cobrar. Desde acá se registra la factura y después el cobro.
+    </p>
+  </div>
+
+  {% for msg in messages %}
+  <div class="alert alert-{{ msg.tags }} alert-dismissible fade show" role="alert">
+    {{ msg }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+
+  <div class="card border-0 mb-4" style="background: rgba(255,255,255,0.06);">
+    <div class="card-body border-bottom" style="border-color: rgba(255,255,255,0.08) !important;">
+      <h5 class="text-white mb-1">Liquidaciones pendientes de factura</h5>
+      <p class="text-secondary small mb-0">
+        El importe a facturar es la comisión liquidada en Marchiquita.
+      </p>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-dark mb-0" style="background: transparent;">
+        <thead>
+          <tr style="border-color: rgba(255,255,255,0.1);">
+            <th class="text-secondary fw-normal">Período</th>
+            <th class="text-secondary fw-normal">Liquidación</th>
+            <th class="text-secondary fw-normal">Total cobrado</th>
+            <th class="text-secondary fw-normal">Importe a facturar</th>
+            <th class="text-secondary fw-normal">N° factura</th>
+            <th class="text-secondary fw-normal">Fecha emisión</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for liquidacion in liquidaciones %}
+          <tr style="border-color: rgba(255,255,255,0.07);">
+            <td class="text-white">{{ liquidacion.importacion.periodo|date:"m/Y" }}</td>
+            <td class="text-secondary">#{{ liquidacion.pk }}</td>
+            <td class="text-secondary">$ {{ liquidacion.total_cobrado|floatformat:2 }}</td>
+            <td class="text-white fw-semibold">$ {{ liquidacion.comision|floatformat:2 }}</td>
+            <td colspan="3" class="text-end">
+              <form method="post" class="row g-2 justify-content-end align-items-center">
+                {% csrf_token %}
+                <input type="hidden" name="liquidacion_id" value="{{ liquidacion.pk }}">
+                <div class="col-12 col-md-4">
+                  <input
+                    type="text"
+                    name="numero_factura"
+                    class="form-control form-control-sm"
+                    placeholder="Ej: A-0001-00001234"
+                    style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); color: #fff;"
+                    required>
+                </div>
+                <div class="col-12 col-md-3">
+                  <input
+                    type="date"
+                    name="fecha_emision"
+                    value="{{ today|date:'Y-m-d' }}"
+                    class="form-control form-control-sm"
+                    style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); color: #fff;"
+                    required>
+                </div>
+                <div class="col-12 col-md-auto">
+                  <button type="submit" class="btn btn-outline-light btn-sm">
+                    Cargar factura
+                  </button>
+                </div>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-secondary text-center py-4">
+              No hay liquidaciones pendientes de facturar.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card border-0" style="background: rgba(255,255,255,0.06);">
+    <div class="card-body border-bottom" style="border-color: rgba(255,255,255,0.08) !important;">
+      <h5 class="text-white mb-1">Facturas cargadas recientemente</h5>
+      <p class="text-secondary small mb-0">
+        Una vez cargada la factura, desde su detalle podés marcarla como cobrada.
+      </p>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-dark mb-0" style="background: transparent;">
+        <thead>
+          <tr style="border-color: rgba(255,255,255,0.1);">
+            <th class="text-secondary fw-normal">N° Factura</th>
+            <th class="text-secondary fw-normal">Fecha emisión</th>
+            <th class="text-secondary fw-normal">Monto</th>
+            <th class="text-secondary fw-normal">Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for factura in facturas %}
+          <tr style="border-color: rgba(255,255,255,0.07);">
+            <td class="text-white">{{ factura.numero }}</td>
+            <td class="text-secondary">{{ factura.fecha_emision|date:"d/m/Y" }}</td>
+            <td class="text-white">$ {{ factura.monto_total|floatformat:2 }}</td>
+            <td>
+              {% if factura.estado == 'PRESENTADA' %}
+                <span class="badge bg-warning text-dark">Presentada</span>
+              {% elif factura.estado == 'COBRADA' %}
+                <span class="badge bg-success">Cobrada</span>
+              {% elif factura.estado == 'RECHAZADA' %}
+                <span class="badge bg-danger">Rechazada</span>
+              {% else %}
+                <span class="badge bg-secondary">Anulada</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <a href="{% url 'cobros_publivial:factura_detalle' factura.pk %}" class="btn btn-outline-light btn-sm">
+                Ver
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="text-secondary text-center py-4">
+              No hay facturas cargadas todavía.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock contenido_panel %}
