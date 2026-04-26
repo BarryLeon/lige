@@ -14,6 +14,7 @@ import logging
 
 import cv2
 import numpy as np
+from carteles.servicios.torch_utils import cuda_disponible, suprimir_warnings_torch_cpu
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +26,12 @@ def _get_lector():
     global _lector
     if _lector is None:
         import easyocr
-        import torch
-        usa_gpu = torch.cuda.is_available()
-        _lector = easyocr.Reader(["es", "en"], gpu=usa_gpu, verbose=False)
+        with suprimir_warnings_torch_cpu():
+            _lector = easyocr.Reader(
+                ["es", "en"],
+                gpu=cuda_disponible(),
+                verbose=False,
+            )
     return _lector
 
 
@@ -90,7 +94,8 @@ def extraer_texto(ruta_imagen: str, bbox: dict | None) -> dict:
     # 4. Correr EasyOCR
     try:
         lector = _get_lector()
-        detecciones = lector.readtext(recorte, detail=1, paragraph=False)
+        with suprimir_warnings_torch_cpu():
+            detecciones = lector.readtext(recorte, detail=1, paragraph=False)
     except Exception as exc:
         logger.error(f"Error en EasyOCR: {exc}")
         resultado["error"] = f"ocr_fallido: {exc}"

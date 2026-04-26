@@ -31,6 +31,7 @@ from PIL import Image
 from PIL.ExifTags import TAGS
 from ultralytics import YOLO
 from carteles.servicios.ocr_cartel import extraer_texto
+from carteles.servicios.torch_utils import cuda_disponible
 
 # ── Modelo YOLO ──────────────────────────────────────────────────────────────
 _MODELO_PATH = os.path.join(os.path.dirname(__file__), "carteles_yolo.pt")
@@ -45,9 +46,8 @@ def _get_modelo():
     if _modelo is None:
         _modelo = YOLO(_MODELO_PATH)
         try:
-            import torch
-            if torch.cuda.is_available():
-                _modelo.to("cuda")  # usar GPU RTX 3050
+            if cuda_disponible():
+                _modelo.to("cuda")
             else:
                 _modelo.to("cpu")
         except Exception:

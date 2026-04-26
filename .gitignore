@@ -13,6 +13,7 @@ __pycache__/
 
 # Archivos de configuración sensible
 .env
+.env.prod
 .secret_keys.py
 
 # Archivos de VS Code

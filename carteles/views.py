@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 from django.contrib import messages
 from django.core.files.base import ContentFile
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Q, Sum, Count
 from django.urls import reverse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -21,6 +22,17 @@ from .servicios.kobo_delete import borrar_submission_kobo
 
 
 def _resetear_estado_deteccion(cartel):
+    cartel.cartel_detectado = None
+    cartel.confianza_deteccion = None
+    cartel.bbox_x = None
+    cartel.bbox_y = None
+    cartel.bbox_w = None
+    cartel.bbox_h = None
+    cartel.ancho_m = None
+    cartel.alto_m = None
+    cartel.superficie_m2 = None
+    cartel.texto_ocr = None
+    cartel.advertencia_sin_texto = False
     cartel.error_sin_deteccion = False
     cartel.error_imagen_ilegible = False
     cartel.error_distancia_invalida = False
@@ -131,6 +143,10 @@ def _reprocesar_cartel(cartel):
         cartel.distancia,
         esquinas_manuales=cartel.manual_esquinas,
     )
+
+
+def _obtener_cartel_para_actualizar(pk):
+    return get_object_or_404(Cartel.objects.select_for_update(), pk=pk)
 
 
 def _get_carteles_base_queryset():
@@ -301,42 +317,37 @@ def reprocesar_cartel(request, pk):
     if request.method != "POST":
         return redirect("carteles_lista")
 
-    cartel = get_object_or_404(Cartel, pk=pk)
+    with transaction.atomic():
+        cartel = _obtener_cartel_para_actualizar(pk)
 
-    if not cartel.foto:
-        messages.error(request, "Este cartel no tiene foto. No se puede reprocesar.")
-        return redirect("carteles_detalle", pk=pk)
+        if not cartel.foto:
+            messages.error(request, "Este cartel no tiene foto. No se puede reprocesar.")
+            return redirect("carteles_detalle", pk=pk)
 
-    resultado = _reprocesar_cartel(cartel)
-    error = _aplicar_resultado_detector(cartel, resultado)
+        resultado = _reprocesar_cartel(cartel)
+        error = _aplicar_resultado_detector(cartel, resultado)
 
-    if error == "imagen_ilegible":
-        messages.error(request, "La imagen está corrupta o no pudo leerse.")
-    elif error == "distancia_invalida":
-        messages.error(request, "La distancia registrada es inválida.")
-    elif error == "sin_deteccion":
-        messages.warning(request, "No se detectó ningún cartel en la imagen.")
-    else:
-        messages.success(
-            request,
-            f"Reprocesado OK — {cartel.ancho_m}m × {cartel.alto_m}m = "
-            f"{cartel.superficie_m2} m² "
-            f"[{resultado.get('metodo_deteccion')}/{resultado.get('metodo_superficie')}]"
-        )
+        if error == "imagen_ilegible":
+            messages.error(request, "La imagen está corrupta o no pudo leerse.")
+        elif error == "distancia_invalida":
+            messages.error(request, "La distancia registrada es inválida.")
+        elif error == "sin_deteccion":
+            messages.warning(request, "No se detectó ningún cartel en la imagen.")
+        else:
+            messages.success(
+                request,
+                f"Reprocesado OK — {cartel.ancho_m}m × {cartel.alto_m}m = "
+                f"{cartel.superficie_m2} m² "
+                f"[{resultado.get('metodo_deteccion')}/{resultado.get('metodo_superficie')}]"
+            )
 
-    cartel.save()
+        cartel.save()
     return redirect("carteles_detalle", pk=pk)
 
 
 def corregir_distancia_y_reprocesar(request, pk):
     if request.method != "POST":
         return redirect("carteles_lista")
-
-    cartel = get_object_or_404(Cartel, pk=pk)
-
-    if not cartel.foto:
-        messages.error(request, "Este cartel no tiene foto. No se puede recalcular.")
-        return redirect("carteles_detalle", pk=pk)
 
     distancia_str = (request.POST.get("distancia") or "").strip().replace(",", ".")
     try:
@@ -345,32 +356,39 @@ def corregir_distancia_y_reprocesar(request, pk):
         messages.error(request, "Ingresá una distancia válida en metros.")
         return redirect("carteles_detalle", pk=pk)
 
-    cartel.distancia = nueva_distancia
-    try:
-        cartel.full_clean()
-    except ValidationError as exc:
-        messages.error(request, f"No se pudo guardar la nueva distancia: {exc}")
-        return redirect("carteles_detalle", pk=pk)
+    with transaction.atomic():
+        cartel = _obtener_cartel_para_actualizar(pk)
 
-    cartel.save(update_fields=["distancia", "actualizado"])
+        if not cartel.foto:
+            messages.error(request, "Este cartel no tiene foto. No se puede recalcular.")
+            return redirect("carteles_detalle", pk=pk)
 
-    resultado = _reprocesar_cartel(cartel)
-    error = _aplicar_resultado_detector(cartel, resultado)
+        cartel.distancia = nueva_distancia
+        try:
+            cartel.full_clean()
+        except ValidationError as exc:
+            messages.error(request, f"No se pudo guardar la nueva distancia: {exc}")
+            return redirect("carteles_detalle", pk=pk)
 
-    if error == "imagen_ilegible":
-        messages.error(request, "La imagen está corrupta o no pudo leerse.")
-    elif error == "distancia_invalida":
-        messages.error(request, "La nueva distancia registrada es inválida.")
-    elif error == "sin_deteccion":
-        messages.warning(request, "No se detectó ningún cartel en la imagen.")
-    else:
-        messages.success(
-            request,
-            f"Distancia actualizada a {cartel.distancia:.1f} m y superficie recalculada: "
-            f"{cartel.superficie_m2} m² [{resultado.get('metodo_superficie')}]"
-        )
+        cartel.save(update_fields=["distancia", "actualizado"])
 
-    cartel.save()
+        resultado = _reprocesar_cartel(cartel)
+        error = _aplicar_resultado_detector(cartel, resultado)
+
+        if error == "imagen_ilegible":
+            messages.error(request, "La imagen está corrupta o no pudo leerse.")
+        elif error == "distancia_invalida":
+            messages.error(request, "La nueva distancia registrada es inválida.")
+        elif error == "sin_deteccion":
+            messages.warning(request, "No se detectó ningún cartel en la imagen.")
+        else:
+            messages.success(
+                request,
+                f"Distancia actualizada a {cartel.distancia:.1f} m y superficie recalculada: "
+                f"{cartel.superficie_m2} m² [{cartel.origen_medicion}/{resultado.get('metodo_superficie')}]"
+            )
+
+        cartel.save()
     return redirect("carteles_detalle", pk=pk)
 
 
@@ -378,36 +396,37 @@ def guardar_esquinas_manuales(request, pk):
     if request.method != "POST":
         return redirect("carteles_lista")
 
-    cartel = get_object_or_404(Cartel, pk=pk)
-    if not cartel.foto:
-        messages.error(request, "Este cartel no tiene foto. No se pueden guardar esquinas.")
-        return redirect("carteles_detalle", pk=pk)
-
     try:
         esquinas = _parsear_esquinas_manuales(request.POST.get("esquinas_json"))
     except ValidationError as exc:
         messages.error(request, str(exc))
         return redirect("carteles_detalle", pk=pk)
 
-    cartel.manual_esquinas = esquinas
-    cartel.save(update_fields=["manual_esquinas", "actualizado"])
+    with transaction.atomic():
+        cartel = _obtener_cartel_para_actualizar(pk)
+        if not cartel.foto:
+            messages.error(request, "Este cartel no tiene foto. No se pueden guardar esquinas.")
+            return redirect("carteles_detalle", pk=pk)
 
-    resultado = _reprocesar_cartel(cartel)
-    error = _aplicar_resultado_detector(cartel, resultado)
+        cartel.manual_esquinas = esquinas
+        cartel.save(update_fields=["manual_esquinas", "actualizado"])
 
-    if error:
-        messages.warning(
-            request,
-            "Se guardaron las esquinas manuales, pero no se pudo recalcular correctamente.",
-        )
-    else:
-        messages.success(
-            request,
-            f"Esquinas manuales guardadas. Nueva superficie: {cartel.superficie_m2} m² "
-            f"[{cartel.origen_medicion}/{cartel.metodo_superficie}]"
-        )
+        resultado = _reprocesar_cartel(cartel)
+        error = _aplicar_resultado_detector(cartel, resultado)
 
-    cartel.save()
+        if error:
+            messages.warning(
+                request,
+                "Se guardaron las esquinas manuales, pero no se pudo recalcular correctamente.",
+            )
+        else:
+            messages.success(
+                request,
+                f"Esquinas manuales guardadas. Nueva superficie: {cartel.superficie_m2} m² "
+                f"[{cartel.origen_medicion}/{cartel.metodo_superficie}]"
+            )
+
+        cartel.save()
     return redirect("carteles_detalle", pk=pk)
 
 
@@ -415,26 +434,27 @@ def quitar_esquinas_manuales(request, pk):
     if request.method != "POST":
         return redirect("carteles_lista")
 
-    cartel = get_object_or_404(Cartel, pk=pk)
-    cartel.manual_esquinas = None
-    cartel.save(update_fields=["manual_esquinas", "actualizado"])
+    with transaction.atomic():
+        cartel = _obtener_cartel_para_actualizar(pk)
+        cartel.manual_esquinas = None
+        cartel.save(update_fields=["manual_esquinas", "actualizado"])
 
-    if not cartel.foto:
-        messages.success(request, "Se volvió al modo automático.")
-        return redirect("carteles_detalle", pk=pk)
+        if not cartel.foto:
+            messages.success(request, "Se volvió al modo automático.")
+            return redirect("carteles_detalle", pk=pk)
 
-    resultado = _reprocesar_cartel(cartel)
-    error = _aplicar_resultado_detector(cartel, resultado)
+        resultado = _reprocesar_cartel(cartel)
+        error = _aplicar_resultado_detector(cartel, resultado)
 
-    if error:
-        messages.warning(
-            request,
-            "Se quitaron las esquinas manuales, pero el reproceso automático tuvo problemas.",
-        )
-    else:
-        messages.success(request, "Se volvió al modo automático de detección.")
+        if error:
+            messages.warning(
+                request,
+                "Se quitaron las esquinas manuales, pero el reproceso automático tuvo problemas.",
+            )
+        else:
+            messages.success(request, "Se volvió al modo automático de detección.")
 
-    cartel.save()
+        cartel.save()
     return redirect("carteles_detalle", pk=pk)
 
 
