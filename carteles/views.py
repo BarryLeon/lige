@@ -21,6 +21,9 @@ from .servicios.importar_kobo import importar_kobo
 from .servicios.kobo_delete import borrar_submission_kobo
 
 
+CARTELES_DB_ALIAS = "carteles"
+
+
 def _resetear_estado_deteccion(cartel):
     cartel.cartel_detectado = None
     cartel.confianza_deteccion = None
@@ -146,7 +149,10 @@ def _reprocesar_cartel(cartel):
 
 
 def _obtener_cartel_para_actualizar(pk):
-    return get_object_or_404(Cartel.objects.select_for_update(), pk=pk)
+    return get_object_or_404(
+        Cartel.objects.using(CARTELES_DB_ALIAS).select_for_update(),
+        pk=pk,
+    )
 
 
 def _get_carteles_base_queryset():
@@ -317,7 +323,7 @@ def reprocesar_cartel(request, pk):
     if request.method != "POST":
         return redirect("carteles_lista")
 
-    with transaction.atomic():
+    with transaction.atomic(using=CARTELES_DB_ALIAS):
         cartel = _obtener_cartel_para_actualizar(pk)
 
         if not cartel.foto:
@@ -356,7 +362,7 @@ def corregir_distancia_y_reprocesar(request, pk):
         messages.error(request, "Ingresá una distancia válida en metros.")
         return redirect("carteles_detalle", pk=pk)
 
-    with transaction.atomic():
+    with transaction.atomic(using=CARTELES_DB_ALIAS):
         cartel = _obtener_cartel_para_actualizar(pk)
 
         if not cartel.foto:
@@ -402,7 +408,7 @@ def guardar_esquinas_manuales(request, pk):
         messages.error(request, str(exc))
         return redirect("carteles_detalle", pk=pk)
 
-    with transaction.atomic():
+    with transaction.atomic(using=CARTELES_DB_ALIAS):
         cartel = _obtener_cartel_para_actualizar(pk)
         if not cartel.foto:
             messages.error(request, "Este cartel no tiene foto. No se pueden guardar esquinas.")
@@ -434,7 +440,7 @@ def quitar_esquinas_manuales(request, pk):
     if request.method != "POST":
         return redirect("carteles_lista")
 
-    with transaction.atomic():
+    with transaction.atomic(using=CARTELES_DB_ALIAS):
         cartel = _obtener_cartel_para_actualizar(pk)
         cartel.manual_esquinas = None
         cartel.save(update_fields=["manual_esquinas", "actualizado"])

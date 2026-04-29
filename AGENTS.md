@@ -1,214 +1,104 @@
-# AGENTS.md — Proyecto LIGE (Sistema Municipal de Carteles y Tasas)
+# AGENTS.md
 
-## Descripción del proyecto
+Este proyecto en Django es una plataforma integral para la gestión de carteles publicitarios y tasas municipales, con múltiples módulos interconectados y una arquitectura de bases de datos multi-tenant. A continuación, se detallan los agentes que conforman el sistema, adaptados al contexto real del proyecto:
 
-Sistema web Django para la Municipalidad de Mar Chiquita (Buenos Aires, Argentina).
-Gestiona dos dominios principales:
+1. Agente de autenticación
+2. Agente de autorización
+3. Agente de gestión de bases de datos
+4. Agente de gestión de archivos
+5. Agente de seguridad
+6. Agente de monitoreo
+7. Agente de registro
+8. Agente de notificaciones
+9. Agente de integración con terceros
+10. Agente de pruebas
 
-1. **Carteles publicitarios**: relevamiento de campo vía KoboToolbox, detección
-   automática con YOLO, OCR con EasyOCR, liquidación de tasas municipales y
-   exportación a Excel/PDF.
-2. **Tasas Marchiquita**: importación mensual de padrones de deuda desde Excel,
-   planes de cuotas, consultas por deudor/parcela y liquidación de comisiones (25%).
+# Agente de autenticación
 
-Stack: Django 6.0, Python 3.12, SQLite (dev) / PostgreSQL (prod), Bootstrap 5.3,
-YOLO v8 (ultralytics), EasyOCR, OpenCV, openpyxl, ReportLab.
+El agente de autenticación gestiona el acceso del usuario al sistema mediante el middleware `LoginRequiredMiddleware` en `principal/middleware.py`, que redirige a la página de login (`usuarios/views.py`) si el usuario no está autenticado. El sistema utiliza Django's built-in `auth.User` y el modelo `PerfilUsuario` en `usuarios/models.py` para extender la información del usuario. La autenticación se realiza a través de un formulario personalizado (`CustomAuthenticationForm`), y la sesión se configura con expiración de 30 minutos (`SESSION_COOKIE_AGE = 1800`) y expira al cerrar el navegador (`SESSION_EXPIRE_AT_BROWSER_CLOSE = True`).
 
----
+# Agente de autorización
 
-## Estructura de apps
+El agente de autorización controla los permisos de acceso a funcionalidades específicas según el rol del usuario. Aunque no se implementa un sistema de roles explícito, la autorización se maneja a través de la lógica de negocio en las vistas y servicios. Por ejemplo, solo los usuarios autorizados pueden generar liquidaciones, facturas o modificar datos sensibles. El acceso a ciertas vistas está restringido mediante el decorador `@login_required`. La integración con el sistema de autenticación de Django permite definir permisos a nivel de modelo y vista.
 
-```
-lige/                   # Proyecto Django (settings, urls raíz)
-principal/              # Panel principal, login, middleware de autenticación
-usuarios/               # Modelo PerfilUsuario, autenticación
-carteles/               # App principal de carteles
-  models.py             # Persona, Parcela, Cartel, HistorialPublicidad
-  views.py              # CRUD carteles, importar Kobo, reprocesar, informes, exportar
-  urls.py               # Rutas del módulo carteles/
-  servicios/
-    cartel_detector.py  # Detección YOLO → GrabCut → Contornos + cálculo de superficie
-    ocr_cartel.py       # EasyOCR sobre el bbox detectado
-    importar_kobo.py    # Importación desde KoboToolbox API
-    kobo_delete.py      # Borrado de submissions en Kobo
-    exportar.py         # Exportación Excel (openpyxl) y PDF (ReportLab)
-tasacartel/             # Liquidación de tasa anual por cartel (ordenanza municipal)
-  models.py             # ValorTasaAnual, Liquidacion, LiquidacionPeriodo, PlanDePago, CuotaPlan
-tasas_marchiquita/      # Gestión de padrones de deuda municipales
-  models.py             # ArchivoImportacion, ResponsablePago, Parcela, Deuda, Cuota, Liquidacion
-  services.py           # Toda la lógica: guardar/procesar/revertir archivo, consultas, liquidación PDF
-templates/              # Templates HTML globales y por app
-static_dev/             # CSS (Bootstrap + SCSS custom), JS, imágenes
-```
+# Agente de gestión de bases de datos
 
----
+El agente de gestión de bases de datos administra una arquitectura multi-database con 4 bases de datos distintas, definidas en `lige/settings.py` y configuradas mediante un router personalizado (`lige/routers.py`). Cada base de datos está asignada a un conjunto específico de aplicaciones:
 
-## Comandos de desarrollo
+- `default`: Contiene `auth`, `sessions`, `admin`, `principal`, `usuarios`.
+- `marchiquita`: Gestiona la app `tasas_marchiquita` (gestión de deudas y cuotas de contribuyentes).
+- `carteles`: Maneja `carteles` y `tasacartel` (registro de carteles, medición, tasas y liquidaciones).
+- `cobros_publivial`: Administra `cobros_publivial` (honorarios, facturación y cobros).
 
-```bash
-# Activar entorno virtual (ajustar ruta si es distinta)
-source venv/bin/activate
+El router `ClientesRouter` dirige las consultas de lectura y escritura según el `app_label` del modelo, asegurando que las operaciones se realicen en la base de datos correcta. Las relaciones entre modelos de distintas bases de datos se manejan con `db_constraint=False` para evitar restricciones de clave foránea cruzada.
 
-# Servidor de desarrollo
-python manage.py runserver
+# Agente de gestión de archivos
 
-# Migraciones
-python manage.py makemigrations
-python manage.py migrate
+El agente de gestión de archivos maneja la carga, almacenamiento y procesamiento de archivos en el sistema. Se utilizan los siguientes tipos de archivos:
 
-# Shell Django
-python manage.py shell
+- **Imágenes de carteles**: Almacenadas en `media/carteles/fotos/` y `media/carteles/anotadas/` (vía `ImageField` en `carteles/models.py`).
+- **Archivos Excel de importación**: Subidos en `tasas_marchiquita` y almacenados como `BinaryField` en `ArchivoImportacion`.
+- **PDFs de liquidación**: Generados y almacenados como `BinaryField` en `Liquidacion`.
+- **Archivos de configuración**: `.env`, `.env.prod` para variables de entorno.
 
-# Crear superusuario
-python manage.py createsuperuser
+Los archivos se sirven a través de `MEDIA_URL = '/media/'` y `MEDIA_ROOT = os.path.join(BASE_DIR, 'media')`. El sistema permite la subida de archivos de hasta 10 MB (`DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024`).
 
-# Recolectar archivos estáticos
-python manage.py collectstatic --noinput
+# Agente de seguridad
 
-# Tests
-python manage.py test                          # todos los tests
-python manage.py test carteles                 # solo app carteles
-python manage.py test tasas_marchiquita        # solo app tasas_marchiquita
-python manage.py test carteles.tests.NombreTestCase  # un test específico
-```
+El agente de seguridad protege el sistema contra amenazas y vulnerabilidades. El proyecto implementa:
 
----
+- **Protección CSRF**: Habilitada por defecto en `MIDDLEWARE`.
+- **Seguridad de sesión**: Sesiones expiran al cerrar navegador y tras 30 minutos de inactividad.
+- **Validación de entradas**: Uso de `full_clean()` y validadores en modelos (por ejemplo, `MinValueValidator`, `MaxValueValidator`).
+- **Protección contra XSS/SQLi**: Uso de ORM de Django y escape automático en templates.
+- **Control de acceso**: Middleware `LoginRequiredMiddleware` para proteger rutas.
+- **Manejo seguro de secretos**: Clave secreta cargada desde `.env` con `environ`.
+- **Protección de archivos**: No se permiten subidas de archivos ejecutables, solo imágenes y Excel.
 
-## Variables de entorno (.env)
+# Agente de monitoreo
 
-El proyecto usa `django-environ`. El archivo `.env` debe estar en la raíz.
-Variables mínimas requeridas:
+El agente de monitoreo no está implementado como un componente independiente, pero se logra a través de:
 
-```
-SECRET_KEY=...
-DEBUG=True
-DATABASE_URL=sqlite:///db.sqlite3
-# o para PostgreSQL:
-# DATABASE_URL=postgres://user:pass@localhost:5432/dbname
-```
+- **Logs de acceso**: Django registra automáticamente las solicitudes HTTP.
+- **Estadísticas en vistas**: La app `tasas_marchiquita` tiene una vista de estadísticas (`estadisticas_view`) que muestra totales de deudas, parcelas, etc.
+- **Registro de eventos**: Cada operación crítica (importación, generación de liquidación, facturación) registra el usuario y la fecha de acción.
+- **Estado de procesamiento**: Modelos como `Cartel` y `ArchivoImportacion` tienen campos de estado (`estado_procesamiento`, `procesado`) que permiten monitorear el flujo de trabajo.
 
----
+# Agente de registro
 
-## Convenciones de código
+El agente de registro captura y almacena eventos y acciones realizadas en el sistema. Se implementa mediante:
 
-### General
-- Python 3.12. Sin type hints obligatorios, pero se usan en funciones de servicio
-  (`services.py`, `cartel_detector.py`).
-- Nombres en **español** para modelos, campos, variables de negocio y mensajes al
-  usuario. Nombres en inglés para patrones Django estándar (`request`, `queryset`,
-  `pk`, etc.).
-- Strings de mensajes al usuario siempre en español (usan `messages.success/error/warning`).
-- `f-strings` para interpolación. Evitar `%` y `.format()`.
+- **Campos de auditoría**: Todos los modelos principales incluyen `creado` y `actualizado` (`auto_now_add`, `auto_now`).
+- **Registro de usuario**: Campos como `generado_por_id_val` en `Liquidacion` y `creado_por` en `Factura` guardan el ID del usuario que realizó la acción.
+- **Historial de versiones**: En `tasacartel`, las liquidaciones generan nuevas versiones (`version`) cuando se editan, conservando el historial de cambios.
+- **Logs de importación**: `ArchivoImportacion` registra cuántos registros se importaron, cuándo y por quién.
 
-### Modelos
-- Cada modelo tiene `creado` y `actualizado` con `auto_now_add` / `auto_now`.
-- Campos opcionales usan `null=True, blank=True`. Campos requeridos no llevan default.
-- `__str__` siempre definido y descriptivo.
-- `class Meta` con `verbose_name`, `verbose_name_plural` y `ordering`.
-- ForeignKeys con `on_delete` explícito y `related_name` descriptivo.
-- Choices como lista de tuplas en el modelo, nombradas `NOMBRE_CHOICES`.
+# Agente de notificaciones
 
-### Vistas
-- Vistas basadas en funciones (FBV), no CBV.
-- Protección de métodos: `if request.method != "POST": return redirect(...)`.
-- No hay Django Forms: los formularios HTML hacen POST directo y las vistas
-  leen `request.POST` manualmente, llaman `full_clean()` antes de `save()`.
-- Siempre usar `get_object_or_404` para obtener objetos por PK.
-- Mensajes de feedback con `django.contrib.messages`.
-- Redirección post-POST con `redirect('nombre_url')`.
+El agente de notificaciones envía alertas y mensajes al usuario a través de Django's message framework (`django.contrib.messages`). Las notificaciones se muestran en las interfaces web y se utilizan para:
 
-### URLs
-- Nombres de URL con prefijo de app: `carteles_lista`, `carteles_detalle`,
-  `tasas_marchiquita_panel`, etc.
-- PKs en URLs como `<int:pk>`.
+- Confirmar operaciones exitosas ("Liquidación creada correctamente").
+- Informar errores ("La imagen está corrupta").
+- Alertar sobre advertencias ("No se detectó ningún cartel").
 
-### Servicios / lógica de negocio
-- Toda la lógica pesada va en `servicios/` (carteles) o `services.py`
-  (tasas_marchiquita), nunca en vistas.
-- Funciones de servicio retornan dicts con claves bien definidas.
-- Errores de negocio se propagan como `ValueError` con mensaje descriptivo.
-- Operaciones que tocan múltiples tablas usan `@transaction.atomic`.
-- Las funciones de servicio públicas tienen docstring explicando parámetros
-  y valor de retorno.
+No se implementan notificaciones por correo electrónico ni push, pero el sistema está preparado para integrarse con servicios externos.
 
-### Templates
-- Base: `base.html` → `layout_interno.html` (páginas autenticadas) /
-  `layout_login.html` (login).
-- Bootstrap 5.3 para estilos. SCSS custom en `static_dev/scss/`.
-- Variables de contexto en snake_case español: `carteles`, `totales`, `stats`.
+# Agente de integración con terceros
 
----
+El agente de integración con terceros se encarga de conectar el sistema con plataformas externas:
 
-## Modelos clave — resumen rápido
+- **KoboToolbox**: La app `carteles` importa datos de formularios de Kobo (`importar_kobo.py`) y permite borrar submissions (`kobo_delete.py`).
+- **OCR**: El servicio `ocr_cartel.py` utiliza OCR para extraer texto de las imágenes de carteles.
+- **Detector de carteles**: Usa modelos de machine learning (`cartel_detector.py`, `torch_utils.py`) para detectar y medir carteles en imágenes.
+- **Exportación a Excel/PDF**: Genera informes y reportes exportables para uso externo.
 
-### App `carteles`
-- `Persona` — física o jurídica, identificada por `cuit_dni` (unique).
-- `Parcela` — terreno con nomenclatura catastral. FK a `Persona` (propietario terreno).
-- `Cartel` — registro de campo. FK a `Parcela` y `Persona` (propietario cartel).
-  Estados de procesamiento: `pendiente` / `ok` / `error`.
-  Estados de registro: `activo` / `descartado`.
-  Campos calculados: `bbox_*`, `ancho_m`, `alto_m`, `superficie_m2`, `texto_ocr`.
-- `HistorialPublicidad` — empresa que publicita en el cartel en un período.
-  `fecha_hasta=None` significa publicidad actual.
+# Agente de pruebas
 
-### App `tasacartel`
-- `ValorTasaAnual` — valor $/m² por año fiscal (histórico desde 2021).
-- `Liquidacion` — cabecera de liquidación de tasa. Responsabilidad solidaria
-  entre propietario cartel, propietario terreno y empresa publicista.
-- `LiquidacionPeriodo` — detalle año por año. Calcula mora con interés simple
-  (4% mensual desde vencimiento 31/12 del año fiscal).
-- `PlanDePago` → `CuotaPlan` — plan de pagos sobre liquidación conformada.
-  Cuota 1 = anticipo sin interés; cuotas 2..N con interés simple.
+El agente de pruebas realiza pruebas unitarias y de integración en las aplicaciones del proyecto. Cada app tiene un archivo `tests.py`:
 
-### App `tasas_marchiquita`
-- `ArchivoImportacion` — Excel binario guardado en BD. Flujo: subir → procesar → (revertir).
-- `ResponsablePago` / `Parcela` / `Deuda` / `Cuota` — padrón de deudas.
-- `Liquidacion` — comisión del 25% sobre lo cobrado en el período. Incluye PDF generado con ReportLab.
+- `carteles/tests.py`
+- `cobros_publivial/tests.py`
+- `tasacartel/tests.py`
+- `tasas_marchiquita/tests.py`
 
----
-
-## Servicios críticos
-
-### `cartel_detector.py`
-Cascada de detección: **YOLO** (modelo `carteles_yolo.pt`, confianza mínima 0.30)
-→ **GrabCut** → **Contornos OpenCV**.
-Cálculo de superficie por semejanza de triángulos usando FOV derivado del EXIF
-(`FocalLengthIn35mmFilm`). Fallback a 65° si no hay EXIF. Tabla `_FOV_POR_MODELO`
-para celulares sin ese campo.
-Flag `zoom_sospechoso` si ancho calculado < 5cm o > 25m.
-
-### `ocr_cartel.py`
-EasyOCR con idiomas `["es", "en"]`. Singleton lazy `_lector`. Recorta el bbox
-con margen de 10px y escala a mínimo 300px de alto antes de procesar.
-Confianza mínima: 0.25.
-
-### `tasas_marchiquita/services.py`
-Dos pasos: `guardar_archivo()` (solo sube) y `procesar_archivo()` (valida todo
-antes de escribir — si hay un solo error aborta sin procesar nada).
-`revertir_procesamiento()` elimina Deudas y Cuotas pero conserva datos maestros
-(Parcelas, ResponsablePago).
-Columnas requeridas del Excel definidas en `COLUMNAS_REQUERIDAS`.
-
----
-
-## Reglas de negocio importantes
-
-- Una `Persona` es propietaria de terreno **o** de cartel, nunca ambas.
-- `HistorialPublicidad` con `fecha_hasta=None` es la publicidad activa. Al agregar
-  una nueva sin `fecha_hasta`, se cierra la anterior automáticamente.
-- La liquidación de tasa (`tasacartel`) usa snapshots de los responsables al momento
-  de la determinación para que el historial no cambie si se editan los datos.
-- El archivo Excel de `tasas_marchiquita` se valida en dos pasadas: primero todas
-  las filas, y solo si no hay errores se escribe en la BD.
-- Deuda original = valor del primer archivo de importación de cada parcela.
-  Los archivos mensuales solo suman pagos; el `VALOR_TOTAL_DEUDA` debe coincidir
-  exactamente con el del archivo inicial.
-
----
-
-## Archivos que NO modificar sin revisión
-
-- `carteles/servicios/carteles_yolo.pt` — modelo YOLO entrenado.
-- `carteles/servicios/modelos_yolo/` — pesos alternativos y métricas.
-- `.env` — variables de entorno sensibles.
-- `db.sqlite3` — base de datos de desarrollo.
+Estas pruebas validan el comportamiento de modelos, vistas y servicios. El proyecto también incluye scripts de automatización (`script_actualizar_bases`, `scripts/`) que pueden ser usados en procesos CI/CD para validar el estado del sistema antes de despliegues.
